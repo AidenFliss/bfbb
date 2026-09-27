@@ -606,6 +606,11 @@ S32 iWindowShouldClose()
     return sShouldClose;
 }
 
+void iWindowRequestClose()
+{
+    sShouldClose = 1;
+}
+
 iWindowMode iWindowGetMode()
 {
     return sMode;

@@ -107,6 +107,13 @@ To add a setting, add a row to `kSettings`: the label, the config key, its
 words and what to call them, when it takes effect, one line of help, and the
 function that applies it.
 
+## Quit to Desktop
+
+The pause menu's last entry, under Quit to Main Menu (retail's Quit Game),
+with its own confirmation (`iQuitDesktop.h`). Yes switches to Save mode and
+stays selected, as the Settings entry does; `iSGSaveLoop` sees that and calls
+`iWindowRequestClose`, which exits the way the window's close button does.
+
 ## Checking
 
 `BFBB_ASSET_VERIFY=1` compares every built asset with the HIP's after each

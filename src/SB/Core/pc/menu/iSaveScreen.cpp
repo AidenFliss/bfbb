@@ -26,8 +26,10 @@
 
 #include "iAssetOverride.h"
 #include "iMenuWide.h"
+#include "iQuitDesktop.h"
 #include "iSaveThumb.h"
 #include "iSettingsScreen.h"
+#include "iWindow.h"
 #include "isavegame.h"
 #include "xstransvc.h"
 #include "zUI.h"
@@ -638,6 +640,11 @@ U32 iSGSaveLoop()
     if (iSettingsRequested(TRUE))
     {
         iSettingsRun(TRUE);
+        return 0;
+    }
+    if (iQuitDesktopRequested())
+    {
+        iWindowRequestClose();
         return 0;
     }
     return SaveScreen();

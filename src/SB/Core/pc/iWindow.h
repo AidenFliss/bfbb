@@ -137,6 +137,10 @@ S32 iWindowGetVSync();
 // to hook, and inventing one needs a seam in zMainLoop.
 S32 iWindowShouldClose();
 
+// Close as if the window's close button had been pressed: the next present
+// exits. The pause menu's Quit to Desktop.
+void iWindowRequestClose();
+
 void iWindowGetSize(S32* width, S32* height);
 
 // The primary display's size in pixels, usable before the window is opened.

@@ -362,7 +362,7 @@ void MNU4_BuildUIFont(iAssetPkg& p)
 
     {
         zUIFontAsset a = kUIFontDefaults;
-        a.pos = xVec3{ 225.0f, 150.0f, 0.0f };
+        a.pos = xVec3{ 225.0f, 110.0f, 0.0f };
         a.dim[0] = 300; a.dim[1] = 40;
         a.uiFontFlags = 0x271;
         a.textAssetID = H("PAUSE OPTIONS CONTROLS TXT");
@@ -383,7 +383,7 @@ void MNU4_BuildUIFont(iAssetPkg& p)
 
     {
         zUIFontAsset a = kUIFontDefaults;
-        a.pos = xVec3{ 300.0f, 230.0f, 0.0f };
+        a.pos = xVec3{ 300.0f, 190.0f, 0.0f };
         a.dim[0] = 300; a.dim[1] = 40;
         a.uiFontFlags = 0x271;
         a.textAssetID = H("PAUSE OPTIONS SAVE TXT");
@@ -421,7 +421,7 @@ void MNU4_BuildUIFont(iAssetPkg& p)
 
     {
         zUIFontAsset a = kUIFontDefaults;
-        a.pos = xVec3{ 325.0f, 270.0f, 0.0f };
+        a.pos = xVec3{ 325.0f, 230.0f, 0.0f };
         a.dim[0] = 300; a.dim[1] = 40;
         a.uiFontFlags = 0x271;
         a.textAssetID = H("PAUSE OPTIONS QUIT TXT");
@@ -431,6 +431,8 @@ void MNU4_BuildUIFont(iAssetPkg& p)
         p.Link(eEventUISelect, eEventPlay, H("MNU4 MOVE A SFX"));
         p.Link(eEventPadPressUp, eEventUIUnselect, H("PAUSE OPTION QUIT UIF"));
         p.Link(eEventPadPressUp, eEventUISelect, H("PAUSE OPTION SAVE UIF"));
+        p.Link(eEventPadPressDown, eEventUIUnselect, H("PAUSE OPTION QUIT UIF"));
+        p.Link(eEventPadPressDown, eEventUISelect, H(IQUIT_DESKTOP_ENTRY));
         p.Link(eEventPadPressX, eEventUIFocusOff_Unselect, H("PAUSE OPTIONS GROUP"));
         p.Link(eEventPadPressX, eEventUIFocusOn, H("MNU4 PAUSE EXIT GAME GROUP"));
         p.Link(eEventPadPressX, eEventUISelect, H("MNU4 EXIT GAME NO UIF"));
@@ -3180,7 +3182,7 @@ void MNU4_BuildUIFont(iAssetPkg& p)
     // not Save that switched the game to Save mode.
     {
         zUIFontAsset a = kUIFontDefaults;
-        a.pos = xVec3{ 270.0f, 190.0f, 0.0f };
+        a.pos = xVec3{ 270.0f, 150.0f, 0.0f };
         a.dim[0] = 300; a.dim[1] = 40;
         a.uiFontFlags = 0x271;
         a.textAssetID = H("PC SETTINGS TXT");
@@ -3194,6 +3196,100 @@ void MNU4_BuildUIFont(iAssetPkg& p)
         p.Link(eEventPadPressDown, eEventUISelect, H("PAUSE OPTION SAVE UIF"));
         p.Link(eEventPadPressX, eEventUIFocusOff, H("PAUSE OPTIONS GROUP"));
         p.Link(eEventPadPressX, eEventDispatcher_SetSaveState_Saving, H("SV DISPATCH"));
+        p.End();
+    }
+
+    // Quit to Desktop, under Quit to Main Menu, and its confirmation: retail's
+    // Quit Game dialog with its own prompt. Yes leaves itself selected and
+    // switches to Save mode, as the Settings entry does; iSGSaveLoop sees that
+    // and closes the window.
+    {
+        zUIFontAsset a = kUIFontDefaults;
+        a.pos = xVec3{ 350.0f, 270.0f, 0.0f };
+        a.dim[0] = 300; a.dim[1] = 40;
+        a.uiFontFlags = 0x271;
+        a.textAssetID = H("PC QUIT DESKTOP TXT");
+        a.space[0] = 32; a.space[1] = 28;
+        a.cdim[0] = 32; a.cdim[1] = 32;
+        p.Begin('UIFT', H(IQUIT_DESKTOP_ENTRY), a);
+        p.Link(eEventUISelect, eEventPlay, H("MNU4 MOVE A SFX"));
+        p.Link(eEventPadPressUp, eEventUIUnselect, H(IQUIT_DESKTOP_ENTRY));
+        p.Link(eEventPadPressUp, eEventUISelect, H("PAUSE OPTION QUIT UIF"));
+        p.Link(eEventPadPressX, eEventUIFocusOff_Unselect, H("PAUSE OPTIONS GROUP"));
+        p.Link(eEventPadPressX, eEventUIFocusOn, H(IQUIT_DESKTOP_GROUP));
+        p.Link(eEventPadPressX, eEventUISelect, H(IQUIT_DESKTOP_NO));
+        p.End();
+    }
+
+    {
+        zUIFontAsset a = kUIFontDefaults;
+        a.moreFlags = 0;
+        a.pos = xVec3{ 80.0f, 110.0f, 0.0f };
+        a.uiFlags = 0x34;
+        a.dim[0] = 500; a.dim[1] = 100;
+        a.uiFontFlags = 0x64;
+        a.textAssetID = H("PC QUIT DESKTOP PROMPT TXT");
+        a.space[0] = 30; a.space[1] = 24;
+        a.cdim[0] = 30; a.cdim[1] = 30;
+        p.Begin('UIFT', H(IQUIT_DESKTOP_PROMPT), a);
+        p.Link(eEventPadPressTriangle, eEventUIFocusOff_Unselect, H(IQUIT_DESKTOP_GROUP));
+        p.Link(eEventPadPressTriangle, eEventUIFocusOn, H("PAUSE OPTIONS GROUP"));
+        p.Link(eEventPadPressTriangle, eEventUISelect, H(IQUIT_DESKTOP_ENTRY));
+        p.End();
+    }
+
+    {
+        zUIFontAsset a = kUIFontDefaults;
+        a.moreFlags = 0;
+        a.pos = xVec3{ 300.0f, 230.0f, 0.0f };
+        a.uiFlags = 0x34;
+        a.dim[0] = 200; a.dim[1] = 40;
+        a.uiFontFlags = 0x271;
+        a.textAssetID = H("MNU4 EXIT GAME YES TXT");
+        a.space[0] = 24; a.space[1] = 24;
+        a.cdim[0] = 24; a.cdim[1] = 24;
+        p.Begin('UIFT', H(IQUIT_DESKTOP_YES), a);
+        p.Link(eEventPadPressUp, eEventUIUnselect, H(IQUIT_DESKTOP_YES));
+        p.Link(eEventPadPressUp, eEventUISelect, H(IQUIT_DESKTOP_NO));
+        p.Link(eEventUISelect, eEventPlay, H("MNU4 MOVE B SFX"));
+        p.Link(eEventPadPressX, eEventPlay, H("MNU4 CONFIRM SFX"));
+        p.Link(eEventPadPressX, eEventUIFocusOff, H(IQUIT_DESKTOP_GROUP));
+        p.Link(eEventPadPressX, eEventDispatcher_SetSaveState_Saving, H("SV DISPATCH"));
+        p.Link(eEventPadPressTriangle, eEventUIFocusOff_Unselect, H(IQUIT_DESKTOP_GROUP));
+        p.Link(eEventPadPressTriangle, eEventUIFocusOn, H("PAUSE OPTIONS GROUP"));
+        p.Link(eEventPadPressTriangle, eEventUISelect, H(IQUIT_DESKTOP_ENTRY));
+        p.Link(eEventPadPressTriangle, eEventPlay, H("MNU4 BACK SFX"));
+        p.Link(eEventPadPressTriangle, eEventUIFocusOn, H("PAUSE OPTIONS BKG GROUP"));
+        p.Link(eEventPadPressTriangle, eEventUISelect, H("PAUSE OPTION MGR UIF"));
+        p.End();
+    }
+
+    {
+        zUIFontAsset a = kUIFontDefaults;
+        a.moreFlags = 0;
+        a.pos = xVec3{ 300.0f, 190.0f, 0.0f };
+        a.uiFlags = 0x34;
+        a.dim[0] = 200; a.dim[1] = 40;
+        a.uiFontFlags = 0x271;
+        a.textAssetID = H("MNU4 EXIT GAME NO TXT");
+        a.space[0] = 24; a.space[1] = 24;
+        a.cdim[0] = 24; a.cdim[1] = 24;
+        p.Begin('UIFT', H(IQUIT_DESKTOP_NO), a);
+        p.Link(eEventPadPressDown, eEventUIUnselect, H(IQUIT_DESKTOP_NO));
+        p.Link(eEventPadPressDown, eEventUISelect, H(IQUIT_DESKTOP_YES));
+        p.Link(eEventUISelect, eEventPlay, H("MNU4 MOVE A SFX"));
+        p.Link(eEventPadPressX, eEventUIFocusOff_Unselect, H(IQUIT_DESKTOP_GROUP));
+        p.Link(eEventPadPressX, eEventUIFocusOn, H("PAUSE OPTIONS GROUP"));
+        p.Link(eEventPadPressX, eEventUISelect, H(IQUIT_DESKTOP_ENTRY));
+        p.Link(eEventPadPressX, eEventPlay, H("MNU4 BACK SFX"));
+        p.Link(eEventPadPressX, eEventUIFocusOn, H("PAUSE OPTIONS BKG GROUP"));
+        p.Link(eEventPadPressX, eEventUISelect, H("PAUSE OPTION MGR UIF"));
+        p.Link(eEventPadPressTriangle, eEventUIFocusOff_Unselect, H(IQUIT_DESKTOP_GROUP));
+        p.Link(eEventPadPressTriangle, eEventUIFocusOn, H("PAUSE OPTIONS GROUP"));
+        p.Link(eEventPadPressTriangle, eEventUISelect, H(IQUIT_DESKTOP_ENTRY));
+        p.Link(eEventPadPressTriangle, eEventPlay, H("MNU4 BACK SFX"));
+        p.Link(eEventPadPressTriangle, eEventUIFocusOn, H("PAUSE OPTIONS BKG GROUP"));
+        p.Link(eEventPadPressTriangle, eEventUISelect, H("PAUSE OPTION MGR UIF"));
         p.End();
     }
 }

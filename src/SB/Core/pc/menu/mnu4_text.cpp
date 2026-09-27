@@ -100,7 +100,7 @@ void MNU4_BuildText(iAssetPkg& p)
     p.Text(H("MNU4 BUSSTOP TXT"), "Pull the {i:button_exitlevel_text} to switch characters");
     p.Text(H("MNU4 D-PAD ADJUST TXT"), "{c=ff646464}{~:c}< > Adjust");
     p.Text(H("MNU4 EXIT GAME NO TXT"), "No");
-    p.Text(H("MNU4 EXIT GAME PROMPT TXT"), "Quit Game and lose all unsaved game data ?");
+    p.Text(H("MNU4 EXIT GAME PROMPT TXT"), "Quit to Main Menu and lose all unsaved game data ?");
     p.Text(H("MNU4 EXIT GAME YES TXT"), "Yes");
     p.Text(H("MNU4 FREE DISK TEXT"), "Available Free Space: {var:SpaceAvailableString}");
     p.Text(H("MNU4 OPTIONS SCREEN TXT"), "Screen Adjust");
@@ -125,7 +125,7 @@ void MNU4_BuildText(iAssetPkg& p)
     p.Text(H("PAUSE OPTIONS CONTROLS TXT"), "Options");
     p.Text(H("PAUSE OPTIONS EXIT LEVEL TXT"), "Exit {var:CurrentScene}");
     p.Text(H("PAUSE OPTIONS LOAD TXT"), "Load Game");
-    p.Text(H("PAUSE OPTIONS QUIT TXT"), "Quit Game");
+    p.Text(H("PAUSE OPTIONS QUIT TXT"), "Quit to Main Menu");
     p.Text(H("PAUSE OPTIONS RETURN TXT"), "Return to previous menu");
     p.Text(H("PAUSE OPTIONS SAVE TXT"), "Save Game");
     p.Text(H("PAUSE OPTIONS TXT"), "{i:ui_options} Options");
@@ -372,6 +372,10 @@ void MNU4_BuildText(iAssetPkg& p)
     // The settings screen (iSettingsScreen.cpp fills these in) and the two
     // menu entries that open it.
     p.Text(H("PC SETTINGS TXT"), "Settings");
+
+    // The pause menu's Quit to Desktop and its confirmation.
+    p.Text(H("PC QUIT DESKTOP TXT"), HOST_QUIT);
+    p.Text(H("PC QUIT DESKTOP PROMPT TXT"), HOST_QUIT " and lose all unsaved game data ?");
     p.TextSpace(H(ISETTINGS_TITLE_TEXT), "Settings", 256);
     p.TextSpace(H(ISETTINGS_HELP_TEXT), "", 256);
     for (S32 i = 0; i < ISETTINGS_ROWS; i++)
