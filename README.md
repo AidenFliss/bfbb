@@ -223,6 +223,20 @@ were recovered from the Xbox `.xbe`.
 | Toon shading | `[experimental] toon` | Cel shading with ink outlines. `solid_flat_props` gives flat props thickness for the outlines. The other `toon_` keys tune it. Shader pipeline only. |
 | World lighting | `[experimental] world_lighting` | Lights the level at runtime instead of using baked vertex colours. `world_light_shadows` and `day_night_cycle` extend it. |
 
+### Cheats
+
+All off by default. The power-ups, shinies and spatulas are saved with the game
+and stay after the cheat is turned off. The warps do not.
+
+| Cheat | Setting | What it does |
+| --- | --- | --- |
+| All warps | `[cheats] all_warps` | The pause menu's taxi goes to every spatula, found or not. |
+| Bubble Bowl | `[cheats] bubble_bowl` | Unlocks the Bubble Bowl. |
+| Cruise Bubble | `[cheats] cruise_bubble` | Unlocks the Cruise Bubble. |
+| Unlimited shinies | `[cheats] unlimited_shinies` | Holds shiny objects at 99999. |
+| Unlimited spatulas | `[cheats] unlimited_spatulas` | Holds golden spatulas at 100. |
+| Unlimited health | `[cheats] unlimited_health` | Hits knock you back but take no health. Goo and bottomless falls still kill. |
+
 ### Fixed bugs
 
 The port fixes these bugs from the original game. The two with a setting can be

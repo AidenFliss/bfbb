@@ -1,5 +1,6 @@
 #include "iSystem.h"
 #include "iBoot.h"
+#include "iCheats.h"
 #include "iConfig.h"
 #include "iDrawDist.h"
 #include "iFile.h"
@@ -821,6 +822,13 @@ static void ApplyConfig()
     // and why it has a switch at all.
     iFixSetMenuRope(iConfigGetBool("fixes.menu_rope", TRUE));
     iFixSetSkyClip(iConfigGetBool("fixes.sky_clip", TRUE));
+
+    iCheatSetAllWarps(iConfigGetBool("cheats.all_warps", FALSE));
+    iCheatSetBubbleBowl(iConfigGetBool("cheats.bubble_bowl", FALSE));
+    iCheatSetCruiseBubble(iConfigGetBool("cheats.cruise_bubble", FALSE));
+    iCheatSetUnlimitedShinies(iConfigGetBool("cheats.unlimited_shinies", FALSE));
+    iCheatSetUnlimitedSpatulas(iConfigGetBool("cheats.unlimited_spatulas", FALSE));
+    iCheatSetUnlimitedHealth(iConfigGetBool("cheats.unlimited_health", FALSE));
 
     // How much slack a stick has. auto is the controller's own -- XInput
     // publishes two different numbers for the two sticks, and a player who

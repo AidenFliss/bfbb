@@ -855,6 +855,7 @@ file(GLOB MENU_SOURCES CONFIGURE_DEPENDS ${PC_DIR}/menu/*.cpp)
 add_library(bfbb_platform STATIC
   ${PC_DIR}/iBoot.cpp
   ${PC_DIR}/iCameraLook.cpp
+  ${PC_DIR}/iCheats.cpp
   ${PC_DIR}/iConfig.cpp
   ${PC_DIR}/iConfigTable.cpp
   ${PC_DIR}/iConfigEdit.cpp

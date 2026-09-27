@@ -31,6 +31,7 @@
 #include "iLoadTransition.h"
 #endif
 
+#include "iCheats.h"
 #include "iDraw.h"
 #include "iSystem.h"
 #include "iTRC.h"
@@ -724,6 +725,7 @@ void zGameLoop()
 
         gGameWhereAmI = eGameWhere_LoopCheats;
         zGameCheats(sTimeElapsed);
+        iCheatsUpdate();
         zGameExtras_SceneUpdate(sTimeElapsed);
         iFileAsyncService();
 
