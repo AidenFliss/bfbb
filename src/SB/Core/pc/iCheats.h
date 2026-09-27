@@ -24,6 +24,29 @@ void iCheatSetUnlimitedShinies(S32 on);
 void iCheatSetUnlimitedSpatulas(S32 on);
 void iCheatSetUnlimitedHealth(S32 on);
 
+// The cheats from the retail button codes whose callbacks in zGameExtras.cpp
+// only play a sound. The effect is the bit cheatList sets in
+// zGameExtras_CheatFlags, which the robot AI, the villager AI, the player and
+// the Cruise Bubble read. These are those bits, Medics' stray 0x100 included.
+// zGameExtras_Save keeps the low 0xFFFF, so expert mode is saved and the rest
+// are not.
+enum iCheatGameFlag
+{
+    ICHEAT_EXPERT = 0x800,
+    ICHEAT_BIG_PLANK = 0x10000,
+    ICHEAT_MEDICS = 0x20100,
+    ICHEAT_SMALL_VILLAGERS = 0x40000,
+    ICHEAT_SMALL_COSTARS = 0x80000,
+    ICHEAT_RICH_VILLAGERS = 0x100000,
+    ICHEAT_PANHANDLE = 0x200000,
+    ICHEAT_DOG_TRICKS = 0x400000,
+    ICHEAT_SHRAPBOB = 0x2000000,
+    ICHEAT_NO_PANTS = 0x10000000,
+    ICHEAT_CRUISE_CONTROL = 0x20000000
+};
+
+void iCheatSetGameFlag(iCheatGameFlag flag, S32 on);
+
 void iCheatsUpdate();
 
 #endif

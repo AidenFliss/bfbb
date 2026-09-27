@@ -236,6 +236,19 @@ and stay after the cheat is turned off. The warps do not.
 | Unlimited shinies | `[cheats] unlimited_shinies` | Holds shiny objects at 99999. |
 | Unlimited spatulas | `[cheats] unlimited_spatulas` | Holds golden spatulas at 100. |
 | Unlimited health | `[cheats] unlimited_health` | Hits knock you back but take no health. Goo and bottomless falls still kill. |
+| Expert mode | `[cheats] expert_mode` | BombBots, Chucks, Slicks, Ham-mers and Tar-Tars move and fire faster. Saved with the game. |
+| ShrapBob | `[cheats] shrapbob` | SpongeBob bursts into pieces every time he dies. |
+| No pants | `[cheats] no_pants` | SpongeBob without his pants. |
+| Cruise control | `[cheats] cruise_control` | A faster, more agile Cruise Bubble with twice the blast radius. |
+| Big Plankton | `[cheats] big_plank` | Plankton at 2.5 times his size. |
+| Small villagers | `[cheats] small_villagers` | Fish villagers at 0.7 times their size. |
+| Small co-stars | `[cheats] small_costars` | Named characters at 0.6 times their size. |
+| Medics | `[cheats] medics` | Villagers sometimes restore one health when you walk up to them. |
+| Dog tricks | `[cheats] dog_tricks` | Villagers cheer and drop shinies when you do a trick in front of them. |
+| Rich villagers | `[cheats] rich_villagers` | Villagers drop shinies when you hit them. |
+| Panhandle | `[cheats] panhandle` | Villagers beg 500 shinies at a time while you have more than 75000. |
+
+Expert mode through panhandle are the cheats from the original button codes.
 
 ### Fixed bugs
 

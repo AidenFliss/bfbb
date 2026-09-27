@@ -829,6 +829,17 @@ static void ApplyConfig()
     iCheatSetUnlimitedShinies(iConfigGetBool("cheats.unlimited_shinies", FALSE));
     iCheatSetUnlimitedSpatulas(iConfigGetBool("cheats.unlimited_spatulas", FALSE));
     iCheatSetUnlimitedHealth(iConfigGetBool("cheats.unlimited_health", FALSE));
+    iCheatSetGameFlag(ICHEAT_EXPERT, iConfigGetBool("cheats.expert_mode", FALSE));
+    iCheatSetGameFlag(ICHEAT_SHRAPBOB, iConfigGetBool("cheats.shrapbob", FALSE));
+    iCheatSetGameFlag(ICHEAT_NO_PANTS, iConfigGetBool("cheats.no_pants", FALSE));
+    iCheatSetGameFlag(ICHEAT_CRUISE_CONTROL, iConfigGetBool("cheats.cruise_control", FALSE));
+    iCheatSetGameFlag(ICHEAT_BIG_PLANK, iConfigGetBool("cheats.big_plank", FALSE));
+    iCheatSetGameFlag(ICHEAT_SMALL_VILLAGERS, iConfigGetBool("cheats.small_villagers", FALSE));
+    iCheatSetGameFlag(ICHEAT_SMALL_COSTARS, iConfigGetBool("cheats.small_costars", FALSE));
+    iCheatSetGameFlag(ICHEAT_MEDICS, iConfigGetBool("cheats.medics", FALSE));
+    iCheatSetGameFlag(ICHEAT_DOG_TRICKS, iConfigGetBool("cheats.dog_tricks", FALSE));
+    iCheatSetGameFlag(ICHEAT_RICH_VILLAGERS, iConfigGetBool("cheats.rich_villagers", FALSE));
+    iCheatSetGameFlag(ICHEAT_PANHANDLE, iConfigGetBool("cheats.panhandle", FALSE));
 
     // How much slack a stick has. auto is the controller's own -- XInput
     // publishes two different numbers for the two sticks, and a player who

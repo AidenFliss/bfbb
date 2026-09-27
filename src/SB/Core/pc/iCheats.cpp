@@ -3,6 +3,7 @@
 #include "iCheats.h"
 
 #include "zEntPlayer.h"
+#include "zGameExtras.h"
 #include "zGlobals.h"
 
 namespace
@@ -16,6 +17,19 @@ namespace
     S32 sUnlimitedShinies = FALSE;
     S32 sUnlimitedSpatulas = FALSE;
     S32 sUnlimitedHealth = FALSE;
+    S32 sGameFlags = 0;
+}
+
+void iCheatSetGameFlag(iCheatGameFlag flag, S32 on)
+{
+    if (on)
+    {
+        sGameFlags |= flag;
+    }
+    else
+    {
+        sGameFlags &= ~flag;
+    }
 }
 
 void iCheatSetAllWarps(S32 on)
@@ -73,5 +87,9 @@ void iCheatsUpdate()
     if (sUnlimitedHealth)
     {
         globals.player.g.TakeDamage = FALSE;
+    }
+    if (sGameFlags != 0)
+    {
+        GEC_CheatFlagAdd(sGameFlags);
     }
 }
