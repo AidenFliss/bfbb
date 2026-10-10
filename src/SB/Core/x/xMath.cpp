@@ -373,6 +373,7 @@ void xAccelMove(F32& x, F32& v, F32 a, F32 dt, F32 maxv)
 
 void xAccelStop(F32& x, F32& v, F32 a, F32 dt)
 {
+    U32 aa;
     F32 oldv = v;
 
     if (oldv >= -0.00001f && oldv <= 0.00001f)
