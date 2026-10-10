@@ -248,8 +248,8 @@ void xAccelMove(F32& x, F32& v, F32 a, F32 dt, F32 endx, F32 maxv)
     F32 dx;
 
     offset = endx - x;
-    t1 = (xabs(v) < 0.001f || ((offset < 0.0f) ? 1 : 0) != ((v < 0.0f) ? 1 : 0)) ? FLOAT_MAX
-                                                                                : offset / v;
+    t1 = (xabs(v) < 0.001f || ((offset < 0.0f) ? 1 : 0) != ((v < 0.0f) ? 1 : 0)) ? FLOAT_MAX :
+                                                                                   offset / v;
     t2 = xabs(v / a);
 
     if (t1 < t2)
