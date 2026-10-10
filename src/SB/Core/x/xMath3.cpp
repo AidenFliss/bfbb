@@ -389,20 +389,17 @@ void xMat3x3RMulRotY(xMat3x3* o, const xMat3x3* m, F32 t)
     F32 sin = isin(t);
     if (o == m)
     {
-        F32 temp1 = o->right.x;
-        F32 temp2 = o->right.z;
-        o->right.z = ((cos * temp2) - (sin * temp1));
-        o->right.x = ((cos * temp1) + (sin * temp2));
+        F32 temp = (cos * o->right.x) + (sin * o->right.z);
+        o->right.z = (cos * o->right.z) - (sin * o->right.x);
+        o->right.x = temp;
 
-        temp1 = o->up.x;
-        temp2 = o->up.z;
-        o->up.z = ((cos * temp2) - (sin * temp1));
-        o->up.x = ((cos * temp1) + (sin * temp2));
+        temp = (cos * o->up.x) + (sin * o->up.z);
+        o->up.z = (cos * o->up.z) - (sin * o->up.x);
+        o->up.x = temp;
 
-        temp1 = o->at.x;
-        temp2 = o->at.z;
-        o->at.z = ((cos * temp2) - (sin * temp1));
-        o->at.x = ((cos * temp1) + (sin * temp2));
+        temp = (cos * o->at.x) + (sin * o->at.z);
+        o->at.z = (cos * o->at.z) - (sin * o->at.x);
+        o->at.x = temp;
     }
     else
     {
@@ -459,18 +456,14 @@ void xMat3x3Transpose(xMat3x3* o, const xMat3x3* m)
 }
 
 void xMat3x3Mul(xMat3x3* o, const xMat3x3* a, const xMat3x3* b)
-
 {
     xMat3x3 temp;
     xMat3x3* tp;
-    U32 usetemp = 0;
+    U32 usetemp;
 
-    if (o == a || o == b)
-    {
-        usetemp = 1;
-    }
+    usetemp = (o == a || o == b);
 
-    if (usetemp != 0)
+    if (usetemp)
     {
         tp = &temp;
     }
@@ -515,11 +508,10 @@ void xMat3x3Mul(xMat3x3* o, const xMat3x3* a, const xMat3x3* b)
     tp->at.z = aax * brz + aay * buz + aaz * baz;
 
     tp->flags = 0;
-    if (usetemp != 0)
+    if (usetemp)
     {
         xMat3x3Copy(o, tp);
     }
-    return;
 }
 
 void xMat3x3LMulVec(xVec3* o, const xMat3x3* m, const xVec3* v)
@@ -735,14 +727,17 @@ void xQuatSlerp(xQuat* o, const xQuat* a, const xQuat* b, F32 t)
 }
 
 void xQuatMul(xQuat* o, const xQuat* a, const xQuat* b)
-
 {
-    o->v.x = a->s * b->v.x + a->v.x * b->s + a->v.y * b->v.z - a->v.z * b->v.y;
-    o->v.y = a->s * b->v.y + a->v.y * b->s + a->v.z * b->v.x - a->v.x * b->v.z;
-    o->v.z = a->s * b->v.z + a->v.z * b->s + a->v.x * b->v.y - a->v.y * b->v.x;
-    o->s = a->s * b->s - a->v.x * b->v.x - a->v.y * b->v.y - a->v.z * b->v.z;
+    F32 _s = a->s * b->s - a->v.x * b->v.x - a->v.y * b->v.y - a->v.z * b->v.z;
+    F32 _x = a->s * b->v.x + a->v.x * b->s + a->v.y * b->v.z - a->v.z * b->v.y;
+    F32 _y = a->s * b->v.y + a->v.y * b->s + a->v.z * b->v.x - a->v.x * b->v.z;
+    F32 _z = a->s * b->v.z + a->v.z * b->s + a->v.x * b->v.y - a->v.y * b->v.x;
+
+    o->v.x = _x;
+    o->v.y = _y;
+    o->v.z = _z;
+    o->s = _s;
     xQuatNormalize(o, o);
-    return;
 }
 
 void xQuatDiff(xQuat* o, const xQuat* a, const xQuat* b)

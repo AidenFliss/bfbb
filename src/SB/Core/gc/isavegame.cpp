@@ -17,40 +17,44 @@
 // Not 100% on what this does or if it's correctly defined for all cases. Seems to be used for allocation alignment
 #define ALIGN_THING(x, n) (n + x - 1 & -x)
 
-// name is a total guess for now
-struct st_ISG_TPL_TEX
+// Dolphin TPL (texture palette) file layout.
+struct st_ISG_TPL_TEXHEADER
 {
-    struct UnkIn
-    {
-        U32 unk_0;
-        U32 unk_4;
-        void* unk_8;
-        U32 unk_c;
-        U32 unk_10[4];
-        U8 unk_20;
-        U8 unk_21;
-        U8 unk_22;
-        U8 unk_23;
-    };
-    struct UnkOut
-    {
-        U8 unk_0;
-        U8 unk_1;
-        U8 unk_2;
-        U8 unk_3;
-        U32 unk_4;
-        void* unk_8;
-    };
-
-    UnkIn* unk_0;
-    UnkOut* unk_4;
+    U16 height;
+    U16 width;
+    U32 format;
+    char* data;
+    GXTexWrapMode wrapS;
+    GXTexWrapMode wrapT;
+    GXTexFilter minFilter;
+    GXTexFilter magFilter;
+    F32 LODBias;
+    U8 edgeLODEnable;
+    U8 minLOD;
+    U8 maxLOD;
+    U8 unpacked;
 };
-// WIP. Looks like some sort of header for a file with embedded texture information.
+
+struct st_ISG_TPL_CLUTHEADER
+{
+    U16 numEntries;
+    U8 unpacked;
+    U8 pad8;
+    GXTlutFmt format;
+    char* data;
+};
+
+struct st_ISG_TPL_TEXDESCRIP
+{
+    st_ISG_TPL_TEXHEADER* textureHeader;
+    st_ISG_TPL_CLUTHEADER* CLUTHeader;
+};
+
 struct st_ISG_TPL_TEXPALETTE
 {
-    U32 magic;
-    U32 count;
-    st_ISG_TPL_TEX* unk_8;
+    U32 versionNumber;
+    U32 numDescriptors;
+    st_ISG_TPL_TEXDESCRIP* descriptorArray;
 };
 
 // .bss
@@ -285,7 +289,7 @@ U32 iSGTgtState(st_ISGSESSION* isgdata, S32 tgtidx, const char* dpath)
         return 0;
     }
 
-    if (data->unk_12c != 0)
+    if (data->cardIsIll != 0)
     {
         return state | 0x1000000;
     }
@@ -655,16 +659,16 @@ S32 iSGSaveFile(st_ISGSESSION* isgdata, const char* fname, char* data, S32 n, S3
     ResetButton::DisableReset();
     if (isgdata->slot < 0)
     {
-        isgdata->unk_26c = ISG_OPSTAT_FAILURE;
-        isgdata->unk_268 = ISG_OPERR_NOCARD;
+        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_operr = ISG_OPERR_NOCARD;
         return 0;
     }
 
     st_ISG_MEMCARD_DATA* mcdata = &isgdata->mcdata[isgdata->slot];
-    if (mcdata->unk_12c != 0)
+    if (mcdata->cardIsIll != 0)
     {
-        isgdata->unk_26c = ISG_OPSTAT_FAILURE;
-        isgdata->unk_268 = ISG_OPERR_DAMAGE;
+        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_operr = ISG_OPERR_DAMAGE;
         return 0;
     }
 
@@ -722,7 +726,7 @@ S32 iSGSaveFile(st_ISGSESSION* isgdata, const char* fname, char* data, S32 n, S3
     }
     xMemPopTemp(alloc);
 
-    if (writeret == 0 && mcdata->unk_12c == 0)
+    if (writeret == 0 && mcdata->cardIsIll == 0)
     {
         iSG_mc_fdel(mcdata, fname);
     }
@@ -730,21 +734,21 @@ S32 iSGSaveFile(st_ISGSESSION* isgdata, const char* fname, char* data, S32 n, S3
     ResetButton::EnableReset();
     iTRCDisk::CheckDVDAndResetState();
 
-    isgdata->unk_268 = ISG_OPERR_NONE;
+    isgdata->as_operr = ISG_OPERR_NONE;
     if (writeret != 0)
     {
-        isgdata->unk_26c = ISG_OPSTAT_SUCCESS;
+        isgdata->as_fakestat = ISG_OPSTAT_SUCCESS;
     }
     else
     {
-        isgdata->unk_26c = ISG_OPSTAT_FAILURE;
+        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
         if (operr != ISG_OPERR_NONE)
         {
-            isgdata->unk_268 = operr;
+            isgdata->as_operr = operr;
         }
         else
         {
-            isgdata->unk_268 = ISG_OPERR_UNKNOWN;
+            isgdata->as_operr = ISG_OPERR_UNKNOWN;
         }
     }
     return writeret;
@@ -771,16 +775,16 @@ S32 iSGReadLeader(st_ISGSESSION* isgdata, const char* fname, char* databuf, S32 
     en_ASYNC_OPERR operr = ISG_OPERR_NONE;
     if (isgdata->slot < 0)
     {
-        isgdata->unk_26c = ISG_OPSTAT_FAILURE;
-        isgdata->unk_268 = ISG_OPERR_NOCARD;
+        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_operr = ISG_OPERR_NOCARD;
         return 0;
     }
     data = &isgdata->mcdata[isgdata->slot];
 
-    if (data->unk_12c != 0)
+    if (data->cardIsIll != 0)
     {
-        isgdata->unk_26c = ISG_OPSTAT_FAILURE;
-        isgdata->unk_268 = ISG_OPERR_DAMAGE;
+        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_operr = ISG_OPERR_DAMAGE;
         return 0;
     }
 
@@ -806,7 +810,14 @@ S32 iSGReadLeader(st_ISGSESSION* isgdata, const char* fname, char* databuf, S32 
 
     if (iSG_mc_fopen(data, fname, -1, ISG_IOMODE_READ, &operr) != 0)
     {
-        readret = (bool)iSG_mc_fread(data, (char*)readbuf, bufsize, iconsize);
+        if (iSG_mc_fread(data, (char*)readbuf, bufsize, iconsize))
+        {
+            readret = 1;
+        }
+        else
+        {
+            readret = 0;
+        }
         iSG_mc_fclose(data);
     }
 
@@ -819,21 +830,21 @@ S32 iSGReadLeader(st_ISGSESSION* isgdata, const char* fname, char* databuf, S32 
         xMemPopTemp(alloc);
     }
 
-    isgdata->unk_268 = ISG_OPERR_NONE;
+    isgdata->as_operr = ISG_OPERR_NONE;
     if (readret != 0)
     {
-        isgdata->unk_26c = ISG_OPSTAT_SUCCESS;
+        isgdata->as_fakestat = ISG_OPSTAT_SUCCESS;
     }
     else
     {
-        isgdata->unk_26c = ISG_OPSTAT_FAILURE;
-        if (data->unk_12c != 0)
+        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        if (data->cardIsIll != 0)
         {
-            isgdata->unk_268 = ISG_OPERR_DAMAGE;
+            isgdata->as_operr = ISG_OPERR_DAMAGE;
         }
         else
         {
-            isgdata->unk_268 = ISG_OPERR_OTHER;
+            isgdata->as_operr = ISG_OPERR_OTHER;
         }
     }
     return readret;
@@ -841,7 +852,7 @@ S32 iSGReadLeader(st_ISGSESSION* isgdata, const char* fname, char* databuf, S32 
 
 en_ASYNC_OPSTAT iSGPollStatus(st_ISGSESSION* isgdata, en_ASYNC_OPCODE* curop, S32 block)
 {
-    return isgdata->unk_26c;
+    return isgdata->as_fakestat;
 }
 
 en_ASYNC_OPERR iSGOpError(st_ISGSESSION* isgdata, char* errmsg)
@@ -874,19 +885,19 @@ en_ASYNC_OPERR iSGOpError(st_ISGSESSION* isgdata, char* errmsg)
     en_ASYNC_OPERR err;
     if (errmsg == NULL)
     {
-        return isgdata->unk_268;
+        return isgdata->as_operr;
     }
 
-    if (isgdata->unk_268 < ISG_OPERR_NOMORE)
+    if (isgdata->as_operr < ISG_OPERR_NOMORE)
     {
-        strncpy(errmsg, errmsgs[isgdata->unk_268], 0x80);
+        strncpy(errmsg, errmsgs[isgdata->as_operr], 0x80);
     }
     else
     {
         strncpy(errmsg, errmsgs[ISG_OPERR_UNKNOWN], 0x80);
     }
     errmsg[0x7f] = NULL;
-    return isgdata->unk_268;
+    return isgdata->as_operr;
 }
 
 static S32 iSG_start_your_engines()
@@ -980,7 +991,7 @@ static S32 iSG_mc_tryRepair(st_ISG_MEMCARD_DATA* mcdata)
         rc = 0;
     }
 
-    else if (mcdata->unk_12c)
+    else if (mcdata->cardIsIll)
     {
         rc = 0;
     }
@@ -1003,7 +1014,7 @@ static S32 iSG_mc_tryRepair(st_ISG_MEMCARD_DATA* mcdata)
         {
             if (result != CARD_RESULT_BROKEN)
             {
-                mcdata->unk_12c = 1;
+                mcdata->cardIsIll = 1;
             }
             rc = 0;
         }
@@ -1021,7 +1032,7 @@ static S32 iSG_mc_isformatted(st_ISG_MEMCARD_DATA* mcdata)
     {
         rc = 0;
     }
-    else if (mcdata->unk_12c)
+    else if (mcdata->cardIsIll)
     {
         rc = 0;
     }
@@ -1073,7 +1084,7 @@ static S32 iSG_mc_isGCcard(st_ISG_MEMCARD_DATA* mcdata, int* param2, int* param3
     {
         return 0;
     }
-    if (mcdata->unk_12c)
+    if (mcdata->cardIsIll)
     {
         return 0;
     }
@@ -1447,12 +1458,12 @@ static void iSG_discard_icondata()
     g_banrsize = 0;
 }
 
-static st_ISG_TPL_TEX* iSG_tpl_TEXGet(st_ISG_TPL_TEXPALETTE*, unsigned int);
+static st_ISG_TPL_TEXDESCRIP* iSG_tpl_TEXGet(st_ISG_TPL_TEXPALETTE*, unsigned int);
 static char* iSG_bfr_icondata(char* param1, CARDStat* stat, char* param3, int param4)
 {
     IconData data = { 0 };
     static st_ISG_TPL_TEXPALETTE* ico_pal;
-    static st_ISG_TPL_TEX* ico_desc;
+    static st_ISG_TPL_TEXDESCRIP* ico_desc;
     static U32 i = 0;
 
     sprintf(data.footer, "SPONGEBOB:WHENROBOTSATTACK::RyanNeilDan");
@@ -1467,13 +1478,13 @@ static char* iSG_bfr_icondata(char* param1, CARDStat* stat, char* param3, int pa
 
     ico_pal = g_rawbanr;
     ico_desc = iSG_tpl_TEXGet(ico_pal, 0);
-    memcpy(data.buf1, ico_desc->unk_0->unk_8, sizeof(data.buf1));
+    memcpy(data.buf1, ico_desc->textureHeader->data, sizeof(data.buf1));
 
     ico_pal = g_rawicon;
     for (i = 0; i < 8; i++)
     {
         ico_desc = iSG_tpl_TEXGet(ico_pal, i);
-        memcpy(data.buf2[i], ico_desc->unk_0->unk_8, sizeof(data.buf2[i]));
+        memcpy(data.buf2[i], ico_desc->textureHeader->data, sizeof(data.buf2[i]));
     }
 
     memcpy(param1, &data, sizeof(data));
@@ -1496,33 +1507,37 @@ static void iSG_upd_icostat(CARDStat*, CARDStat* stat)
     }
 }
 
-static S32 iSG_tpl_unpack(st_ISG_TPL_TEXPALETTE* tpl)
+static S32 iSG_tpl_unpack(st_ISG_TPL_TEXPALETTE* pal)
 {
-    if (tpl->magic != 0x20af30)
+    if (pal->versionNumber != 2142000)
     {
         return 0;
     }
 
-    tpl->unk_8 = (st_ISG_TPL_TEX*)((U32)tpl + (U32)tpl->unk_8);
-    for (S32 i = 0; i < tpl->count; ++i)
+    pal->descriptorArray = (st_ISG_TPL_TEXDESCRIP*)((U32)pal + (U32)pal->descriptorArray);
+    for (S32 i = 0; i < pal->numDescriptors; ++i)
     {
-        st_ISG_TPL_TEX* x = &tpl->unk_8[i];
-        if (x->unk_0 != NULL)
+        st_ISG_TPL_TEXDESCRIP* tmpdesc = &pal->descriptorArray[i];
+        if (tmpdesc->textureHeader != NULL)
         {
-            x->unk_0 = (st_ISG_TPL_TEX::UnkIn*)((U32)tpl + (U32)x->unk_0);
-            if (x->unk_0->unk_23 == 0)
+            tmpdesc->textureHeader =
+                (st_ISG_TPL_TEXHEADER*)((U32)pal + (U32)tmpdesc->textureHeader);
+            if (tmpdesc->textureHeader->unpacked == 0)
             {
-                x->unk_0->unk_8 = (void*)((U32)tpl + (U32)x->unk_0->unk_8);
-                x->unk_0->unk_23 = 1;
+                tmpdesc->textureHeader->data =
+                    (char*)((U32)pal + (U32)tmpdesc->textureHeader->data);
+                tmpdesc->textureHeader->unpacked = 1;
             }
         }
-        if (x->unk_4 != NULL)
+        if (tmpdesc->CLUTHeader != NULL)
         {
-            x->unk_4 = (st_ISG_TPL_TEX::UnkOut*)((U32)tpl + (U32)x->unk_4);
-            if (x->unk_4->unk_2 == 0)
+            tmpdesc->CLUTHeader = (st_ISG_TPL_CLUTHEADER*)((U32)pal + (U32)tmpdesc->CLUTHeader);
+            if (tmpdesc->CLUTHeader->unpacked == 0)
             {
-                x->unk_4->unk_8 = tpl;
-                x->unk_4->unk_2 = 1;
+                // Retail stores the file base here, not base + offset. The icon and
+                // banner TPLs have no CLUTs.
+                tmpdesc->CLUTHeader->data = (char*)pal;
+                tmpdesc->CLUTHeader->unpacked = 1;
             }
         }
     }
@@ -1534,9 +1549,9 @@ static S32 iSG_bnr_unpack(st_ISG_TPL_TEXPALETTE* tpl)
     return iSG_tpl_unpack(tpl);
 }
 
-static st_ISG_TPL_TEX* iSG_tpl_TEXGet(st_ISG_TPL_TEXPALETTE* tpl, U32 n)
+static st_ISG_TPL_TEXDESCRIP* iSG_tpl_TEXGet(st_ISG_TPL_TEXPALETTE* pal, U32 n)
 {
-    return &tpl->unk_8[n];
+    return &pal->descriptorArray[n];
 }
 
 static void iSG_cb_unmount(s32 chan, s32 result);
@@ -1601,7 +1616,7 @@ static void iSG_cb_unmount(s32 chan, s32 result)
 
 static S32 iSG_mc_format(st_ISG_MEMCARD_DATA* mcdata, S32, S32* canRecover)
 {
-    if (mcdata->unk_12c != 0)
+    if (mcdata->cardIsIll != 0)
     {
         if (canRecover != NULL)
         {
@@ -1633,7 +1648,7 @@ static S32 iSG_mc_format(st_ISG_MEMCARD_DATA* mcdata, S32, S32* canRecover)
         switch (result)
         {
         case CARD_RESULT_IOERROR:
-            mcdata->unk_12c = 1;
+            mcdata->cardIsIll = 1;
             if (canRecover != NULL)
             {
                 *canRecover = 0;
@@ -1646,9 +1661,10 @@ static S32 iSG_mc_format(st_ISG_MEMCARD_DATA* mcdata, S32, S32* canRecover)
             }
             ret = -1;
             break;
-        case CARD_RESULT_FATAL_ERROR:
-        case CARD_RESULT_WRONGDEVICE:
+        case CARD_RESULT_READY:
+        case CARD_RESULT_BUSY:
         case CARD_RESULT_NOFILE:
+        case CARD_RESULT_FATAL_ERROR:
             break;
         }
     }
@@ -1682,7 +1698,7 @@ static S32 iSG_mc_fopen(st_ISG_MEMCARD_DATA* mcdata, const char* fname, S32 fsiz
     else
     {
         S32 res = iSG_mc_fdel(mcdata, fname);
-        if (mcdata->unk_12c == 0 && res > 0)
+        if (mcdata->cardIsIll == 0 && res > 0)
         {
             s32 result;
             do
@@ -1705,7 +1721,7 @@ static S32 iSG_mc_fopen(st_ISG_MEMCARD_DATA* mcdata, const char* fname, S32 fsiz
                     break;
                 case CARD_RESULT_IOERROR:
                 case CARD_RESULT_BROKEN:
-                    mcdata->unk_12c = 1;
+                    mcdata->cardIsIll = 1;
                     *operr = ISG_OPERR_DAMAGE;
                     break;
                 case CARD_RESULT_NOENT:
@@ -1814,12 +1830,14 @@ static S32 iSG_mc_fdel(st_ISG_MEMCARD_DATA* mcdata, const char* fname)
         switch (result)
         {
         case CARD_RESULT_IOERROR:
-            mcdata->unk_12c = 1;
+            mcdata->cardIsIll = 1;
             break;
+        case CARD_RESULT_READY:
+        case CARD_RESULT_BUSY:
+        case CARD_RESULT_NOCARD:
+        case CARD_RESULT_NOFILE:
         case CARD_RESULT_NOPERM:
         case CARD_RESULT_FATAL_ERROR:
-        case CARD_RESULT_WRONGDEVICE:
-        case CARD_RESULT_NOFILE:
             break;
         }
     }

@@ -197,14 +197,14 @@ static const char* __deadstripped2()
 
 static void xEntAddShadowRecFlag(xEnt* ent)
 {
-    switch (ent->baseType - 6)
+    switch (ent->baseType)
     {
-    case eBaseTypeUnknown:
-    case eBaseTypeEnv:
-    case eBaseTypePendulum:
-    case eBaseTypeVFX:
-    case eBaseTypeLight:
-    case eBaseTypeEGenerator:
+    case eBaseTypePlatform:
+    case eBaseTypeStatic:
+    case eBaseTypeButton:
+    case eBaseTypeDestructObj:
+    case eBaseTypeNPC:
+    case eBaseTypeBoulder:
     {
         if (ent->model->PipeFlags & 0x0000ff00)
         {
@@ -212,42 +212,6 @@ static void xEntAddShadowRecFlag(xEnt* ent)
         }
         break;
     }
-    case eBaseTypeTrigger:
-    case eBaseTypeVillain:
-    case eBaseTypePlayer:
-    case eBaseTypePickup:
-    case eBaseTypePlatform:
-    case eBaseTypeCamera:
-    case eBaseTypeDoor:
-    case eBaseTypeSavePoint:
-    case eBaseTypeItem:
-    case eBaseTypeStatic:
-    case eBaseTypeDynamic:
-    case eBaseTypeMovePoint:
-    case eBaseTypeTimer:
-    case eBaseTypeBubble:
-    case eBaseTypePortal:
-    case eBaseTypeGroup:
-    case eBaseTypeSFX:
-    case eBaseTypeFFX:
-    case eBaseTypeCounter:
-    case eBaseTypeHangable:
-    case eBaseTypeButton:
-    case eBaseTypeProjectile:
-    case eBaseTypeSurface:
-    case eBaseTypeDestructObj:
-    case eBaseTypeGust:
-    case eBaseTypeVolume:
-    case eBaseTypeDispatcher:
-    case eBaseTypeCond:
-    case eBaseTypeUI:
-    case eBaseTypeUIFont:
-    case eBaseTypeProjectileType:
-    case eBaseTypeLobMaster:
-    case eBaseTypeFog:
-    case eBaseTypeParticleEmitter:
-    case eBaseTypeParticleSystem:
-    case eBaseTypeCutsceneMgr:
     default:
     {
         ent->baseFlags &= 0xffef;
@@ -1343,9 +1307,9 @@ void xEntCollCheckEnv(xEnt* p, xScene* sc)
     coll = &p->collis->colls[p->collis->idx];
     coll->flags = 0x1F00;
 
-    ncolls = 18 - p->collis->idx;
+    ncolls = iSphereHitsEnv3(&p->bound.sph, sc->env, coll, 18 - p->collis->idx, 0.78539819f);
 
-    p->collis->idx += (U8)iSphereHitsEnv3(&p->bound.sph, sc->env, coll, ncolls, 0.78539819f);
+    p->collis->idx += ncolls;
     p->collis->env_eidx = p->collis->idx;
 }
 
@@ -1368,17 +1332,17 @@ static void xEntCollCheckOneGrid(xEnt* p, xScene* sc, xEnt* (*hitIt)(xEnt*, xSce
         cell = xGridIterNextCell(it);
     }
 
-    F32 clcenterz = (grid->csizez * 0.5f);
-    F32 clcenterx = (grid->csizex * 0.5f);
+    xBox clbox;
+    clbox.lower.x = grid->csizex * px;
+    clbox.lower.z = grid->csizez * pz;
+    clbox.lower.x += grid->minx;
+    clbox.lower.z += grid->minz;
 
-    F32 cellx = grid->csizex * px;
-    F32 cellz = grid->csizez * pz;
+    F32 clcenterx = 0.5f * grid->csizex;
+    clcenterx += clbox.lower.x;
 
-    cellx += grid->minx;
-    cellz += grid->minz;
-
-    clcenterx += cellx;
-    clcenterz += cellz;
+    F32 clcenterz = 0.5f * grid->csizez;
+    clcenterz += clbox.lower.z;
 
     static S32 k;
 

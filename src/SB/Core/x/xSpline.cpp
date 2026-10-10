@@ -26,6 +26,7 @@ static F32 sBasisHermite[4][4] = { { 2.0f, -3.0f, 0.0f, 1.0f },
 void Tridiag_Solve(F32* a, F32* b, F32* c, xVec3* d, xVec3* x, S32 n)
 {
     S32 j;
+    S32 idx;
     F32 beta;
     F32* gamma;
     xVec3* delta;
@@ -34,30 +35,33 @@ void Tridiag_Solve(F32* a, F32* b, F32* c, xVec3* d, xVec3* x, S32 n)
     delta = (xVec3*)RwMalloc(n * sizeof(xVec3));
 
     gamma[0] = c[0] / b[0];
-
-    delta[0].x = d[0].x / b[0];
-    delta[0].y = d[0].y / b[0];
-    delta[0].z = d[0].z / b[0];
+    for (idx = 0; idx < 3; idx++)
+    {
+        ((F32*)&delta[0])[idx] = ((F32*)&d[0])[idx] / b[0];
+    }
 
     for (j = 1; j < n; j++)
     {
         beta = b[j] - a[j] * gamma[j - 1];
         gamma[j] = c[j] / beta;
-        delta[j].x = (d[j].x - a[j] * delta[j - 1].x) / beta;
-        delta[j].y = (d[j].y - a[j] * delta[j - 1].y) / beta;
-        delta[j].z = (d[j].z - a[j] * delta[j - 1].z) / beta;
+        for (idx = 0; idx < 3; idx++)
+        {
+            ((F32*)&delta[j])[idx] =
+                (((F32*)&d[j])[idx] - a[j] * ((F32*)&delta[j - 1])[idx]) / beta;
+        }
     }
 
-    j = n - 1;
-    x[j].x = delta[j].x;
-    x[j].y = delta[j].y;
-    x[j].z = delta[j].z;
+    for (idx = 0; idx < 3; idx++)
+    {
+        ((F32*)&x[n - 1])[idx] = ((F32*)&delta[n - 1])[idx];
+    }
 
     for (j = n - 2; j >= 0; j--)
     {
-        x[j].x = delta[j].x - gamma[j] * x[j + 1].x;
-        x[j].y = delta[j].y - gamma[j] * x[j + 1].y;
-        x[j].z = delta[j].z - gamma[j] * x[j + 1].z;
+        for (idx = 0; idx < 3; idx++)
+        {
+            ((F32*)&x[j])[idx] = ((F32*)&delta[j])[idx] - gamma[j] * ((F32*)&x[j + 1])[idx];
+        }
     }
 
     RwFree(gamma);
@@ -72,14 +76,6 @@ void Interpolate_Bspline(xVec3* data, xVec3* control, F32* knots, U32 nodata)
 
     U32 i;
 
-    F32 diff_31;
-    F32 diff_43;
-    F32 diff_53;
-    F32 diff_41;
-    F32 diff_32;
-    F32 diff_52;
-    F32 diff_42;
-
     F32 t1;
     F32 t2;
     F32 t3;
@@ -90,8 +86,8 @@ void Interpolate_Bspline(xVec3* data, xVec3* control, F32* knots, U32 nodata)
     beta = (F32*)RwMalloc(nodata * 4);
     gamma = (F32*)RwMalloc(nodata * 4);
 
-    beta[0] = beta[nodata - 1] = 1.0f;
     alpha[0] = alpha[nodata - 1] = 0.0f;
+    beta[0] = beta[nodata - 1] = 1.0f;
     gamma[0] = gamma[nodata - 1] = 0.0f;
 
     for (i = 1; i < nodata - 1; i += 1)
@@ -102,21 +98,13 @@ void Interpolate_Bspline(xVec3* data, xVec3* control, F32* knots, U32 nodata)
         t4 = knots[i + 4];
         t5 = knots[i + 5];
 
-        diff_31 = t3 - t1;
-        diff_43 = t4 - t3;
-        diff_32 = t3 - t2;
-        diff_53 = t5 - t3;
-        diff_41 = t4 - t1;
-        diff_52 = t5 - t2;
+        alpha[i] = (t4 - t3) * (t4 - t3) / (t4 - t1);
+        beta[i] = (t3 - t1) * (t4 - t3) / (t4 - t1) + (t5 - t3) * (t3 - t2) / (t5 - t2);
+        gamma[i] = (t3 - t2) * (t3 - t2) / (t5 - t2);
 
-        alpha[i] = (diff_43 * diff_43) / diff_41;
-        beta[i] = (diff_31 * diff_43) / diff_41 + (diff_53 * diff_32) / diff_52;
-        gamma[i] = (diff_32 * diff_32) / diff_52;
-
-        diff_42 = t4 - t2;
-        alpha[i] = alpha[i] / diff_42;
-        beta[i] = beta[i] / diff_42;
-        gamma[i] = gamma[i] / diff_42;
+        alpha[i] /= t4 - t2;
+        beta[i] /= t4 - t2;
+        gamma[i] /= t4 - t2;
     }
 
     Tridiag_Solve(alpha, beta, gamma, data, control + 1, nodata);
@@ -263,37 +251,31 @@ void BasisToCoef3(xCoef3* coef, F32 (*N)[4], xVec3* v1, xVec3* v2, xVec3* v3, xV
 
 void CoefToUnity3(xCoef3* coef1, xCoef3* coef2, F32 f1, F32 f2)
 {
-    F32 fdiff;
-    F32 coef2_0;
-    F32 coef2_1;
-    F32 coef2_2;
-    F32 coef2_3;
+    U32 i;
+    F32 a;
+    F32 b;
+    F32 c;
+    F32 d;
+    F32* p;
+    F32* o;
+    F32 dt;
 
-    F32 factor;
-    S32 i;
-    xCoef* c1;
-    xCoef* c2;
+    p = (F32*)coef2;
+    o = (F32*)coef1;
+    dt = f2 - f1;
 
-    fdiff = f2 - f1;
-    c1 = &coef1->x;
-    c2 = &coef2->x;
-    for (i = 3; i != 0; i -= 1)
+    for (i = 0; i < 3; i++)
     {
-        coef2_0 = c2->a[0];
-        coef2_1 = c2->a[1];
-        coef2_2 = c2->a[2];
-        coef2_3 = c2->a[3];
-
-        factor = 3.0f * coef2_0 * fdiff;
-
-        c1->a[0] = fdiff * (fdiff * (coef2_0 * fdiff));
-        c1->a[1] = (f1 * (fdiff * factor)) + (fdiff * (coef2_1 * fdiff));
-        c1->a[2] = (coef2_2 * fdiff) + ((f1 * (f1 * factor)) + (f1 * (2.0f * coef2_1 * fdiff)));
-        c1->a[3] =
-            coef2_3 + ((coef2_2 * f1) + ((f1 * (f1 * (coef2_0 * f1))) + (f1 * (coef2_1 * f1))));
-
-        c1++;
-        c2++;
+        a = p[0] * dt * dt * dt;
+        b = 3.0f * p[0] * dt * dt * f1 + p[1] * dt * dt;
+        c = 3.0f * p[0] * dt * f1 * f1 + 2.0f * p[1] * dt * f1 + p[2] * dt;
+        d = p[0] * f1 * f1 * f1 + p[1] * f1 * f1 + p[2] * f1 + p[3];
+        o[0] = a;
+        o[1] = b;
+        o[2] = c;
+        o[3] = d;
+        p += 4;
+        o += 4;
     }
 }
 
@@ -481,22 +463,21 @@ F32 ArcEvalIterate(xSpline3* spl, F32 s, U32 deriv, xVec3* o, U32 iterations)
 {
     xCoef3* coef;
     xCoef3 tempCoef;
-
     F32 umin;
-    F32 smax;
-    F32 smin;
     F32 umax;
+    F32 smin;
+    F32 smax;
     F32 utest;
     F32 arctest;
-    F32 arclengthmax;
-
     S32 min;
     S32 max;
     S32 test;
     S32 seg;
+    S32 segmul;
 
     min = -1;
     max = spl->arcSample * spl->N - 1;
+
     while (min + 1 != max)
     {
         test = (min + max) >> 1;
@@ -511,69 +492,54 @@ F32 ArcEvalIterate(xSpline3* spl, F32 s, U32 deriv, xVec3* o, U32 iterations)
     }
 
     seg = max / (S32)spl->arcSample;
-    min = seg * spl->arcSample;
-    umin = (F32)(max - min) / (F32)spl->arcSample;
-    umax = (F32)((max + 1) - min) / (F32)spl->arcSample;
-    if (max - 1 >= 0)
-    {
-        smax = spl->arcLength[max - 1];
-    }
-    else
-    {
-        smax = 0.0f;
-    }
-
-    arclengthmax = spl->arcLength[max];
-    if (min - 1 >= 0)
-    {
-        smin = spl->arcLength[min - 1];
-    }
-    else
-    {
-        smin = 0.0f;
-    }
+    segmul = seg * (S32)spl->arcSample;
+    umin = (F32)(max - segmul) / spl->arcSample;
+    umax = (F32)(max + 1 - segmul) / spl->arcSample;
+    smin = (max - 1 >= 0) ? spl->arcLength[max - 1] : 0.0f;
+    smax = spl->arcLength[max];
+    arctest = (segmul - 1 >= 0) ? spl->arcLength[segmul - 1] : 0.0f;
     coef = CoefSeg3(spl, seg, &tempCoef);
 
-    if (s <= smax)
+    if (s <= smin)
     {
         EvalCoef3(coef, umin, deriv, o);
-        return (F32)seg + umin;
+        return seg + umin;
     }
 
-    if (s >= arclengthmax)
+    if (s >= smax)
     {
         EvalCoef3(coef, umax, deriv, o);
-        return (F32)seg + umax;
+        return seg + umax;
     }
 
-    s = s - smin;
-    smax = smax - smin;
-    arclengthmax = arclengthmax - smin;
+    s -= arctest;
+    smin -= arctest;
+    smax -= arctest;
 
     while (iterations != 0)
     {
-        utest = umin + 0.5f * (umax - umin);
+        utest = 0.5f * (umax - umin) + umin;
         arctest = ArcLength3(coef, 0.0, utest);
         if (s > arctest)
         {
             umin = utest;
-            smax = arctest;
+            smin = arctest;
         }
         else
         {
             umax = utest;
-            arclengthmax = arctest;
+            smax = arctest;
         }
-        iterations -= 1;
+        iterations--;
     }
 
-    if (0.0f == arclengthmax - smax)
+    if (smax - smin == 0.0f)
     {
         utest = umin;
     }
     else
     {
-        utest = umin + ((umax - umin) * (s - smax)) / (arclengthmax - smax);
+        utest = umin + (umax - umin) * (s - smin) / (smax - smin);
         if (utest < 0.0f)
         {
             utest = 0.0f;
@@ -585,7 +551,7 @@ F32 ArcEvalIterate(xSpline3* spl, F32 s, U32 deriv, xVec3* o, U32 iterations)
     }
 
     EvalCoef3(coef, utest, deriv, o);
-    return (F32)seg + utest;
+    return seg + utest;
 }
 
 F32 xSpline3_EvalArcApprox(xSpline3* spl, F32 s, U32 deriv, xVec3* o)

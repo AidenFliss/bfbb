@@ -181,55 +181,48 @@ static U8 _xCheckAnimNameInner(const char* name, const char* pattern, S32 patter
         {
             patternCurrent++;
             U8 done = 0;
-            const char* groupStart = &pattern[patternCurrent];
-            const char* current = groupStart;
+            const char* current = &pattern[patternCurrent];
             while (*current != ')' && *current != NULL)
             {
                 const char* startPattern = current;
-                while (*startPattern != NULL && *startPattern != ')' && *startPattern != '|')
+                while (*current != NULL && *current != ')' && *current != '|')
                 {
-                    if (*startPattern == '(')
+                    if (*current == '(')
                     {
                         S32 pc = 1;
-                        while (*startPattern != NULL && pc > 0)
+                        while (*current != NULL && pc > 0)
                         {
-                            if (*startPattern == ')')
+                            if (*current == ')')
                             {
                                 pc--;
                             }
-                            else if (*startPattern == '(')
+                            else if (*current == '(')
                             {
                                 pc++;
                             }
-                            startPattern++;
+                            current++;
                         }
-                        if (*startPattern != NULL)
+                        if (*current != NULL)
                         {
-                            startPattern++;
+                            current++;
                         }
                     }
                     else
                     {
-                        startPattern++;
+                        current++;
                     }
                 }
 
-                if (startPattern != current)
+                if (current != startPattern)
                 {
                     S32 nameOut;
                     S32 extraOut;
 
-                    // NOTE (Square): There is no DWARF for an extra variable here and this programming pattern seems
-                    // extremely wack. I think this "variable" is completely compiler generated for some reason
-                    U8 wtfman = 0;
-                    if (!done &&
-                        _xCheckAnimNameInner(&name[nameCurrent], current, startPattern - current,
-                                             extra, &nameOut, &extraOut))
-                    {
-                        wtfman = 1;
-                    }
+                    U8 ret = !done && _xCheckAnimNameInner(&name[nameCurrent], startPattern,
+                                                           current - startPattern, extra, &nameOut,
+                                                           &extraOut);
 
-                    if (wtfman != 0)
+                    if (ret != 0)
                     {
                         done = 1;
                         nameCurrent += nameOut;
@@ -241,8 +234,7 @@ static U8 _xCheckAnimNameInner(const char* name, const char* pattern, S32 patter
                     }
                 }
 
-                current = startPattern;
-                if (*startPattern == '|')
+                if (*current == '|')
                 {
                     current++;
                 }
@@ -251,7 +243,7 @@ static U8 _xCheckAnimNameInner(const char* name, const char* pattern, S32 patter
             {
                 current++;
             }
-            patternCurrent += current - groupStart;
+            patternCurrent += current - &pattern[patternCurrent];
             if (!done)
             {
                 return 0;
@@ -262,28 +254,29 @@ static U8 _xCheckAnimNameInner(const char* name, const char* pattern, S32 patter
         {
             patternCurrent++;
             const char* current = &pattern[patternCurrent];
-            const char* positiveEnd = current;
-            while (*positiveEnd != NULL && *positiveEnd != ';' && *positiveEnd != '>')
+            const char* positive = current;
+            while (*current != NULL && *current != ';' && *current != '>')
             {
-                positiveEnd++;
+                current++;
             }
 
+            const char* positiveEnd = current;
             const char* negative = NULL;
             const char* negativeEnd = NULL;
 
-            if (*positiveEnd == ';')
+            if (*current == ';')
             {
-                negativeEnd = positiveEnd + 1;
-                negative = negativeEnd;
-                while (*negativeEnd != NULL && *negativeEnd != '>')
+                current++;
+                negative = current;
+                while (*current != NULL && *current != '>')
                 {
-                    negativeEnd++;
-                };
-                positiveEnd = negativeEnd;
+                    current++;
+                }
+                negativeEnd = current;
             }
             S32 nameOut;
             S32 extraOut;
-            U8 matched = _xCheckAnimNameInner(&name[nameCurrent], current, positiveEnd - current,
+            U8 matched = _xCheckAnimNameInner(&name[nameCurrent], positive, positiveEnd - positive,
                                               extra, &nameOut, &extraOut);
             if (matched != 0)
             {
@@ -304,11 +297,11 @@ static U8 _xCheckAnimNameInner(const char* name, const char* pattern, S32 patter
                 }
             }
 
-            if (*positiveEnd != NULL)
+            if (*current != NULL)
             {
-                positiveEnd++;
+                current++;
             }
-            patternCurrent += positiveEnd - current;
+            patternCurrent += current - &pattern[patternCurrent];
             if (matched == 0)
             {
                 return 0;
@@ -473,9 +466,11 @@ static void TransitionTimeInit(xAnimSingle* single, xAnimTransition* tran)
 {
     if (tran->Flags & 0x20)
     {
-        if ((tran->Dest->Data->FileFlags ^ single->State->Data->FileFlags) & 0x1000)
+        xAnimFile* dest = tran->Dest->Data;
+
+        if ((single->State->Data->FileFlags ^ dest->FileFlags) & 0x1000)
         {
-            single->Time = tran->Dest->Data->Duration - single->Time;
+            single->Time = dest->Duration - single->Time;
         }
     }
     else
@@ -638,7 +633,7 @@ void xAnimFileEval(xAnimFile* data, F32 time, F32* bilinear, U32 flags, xVec3* t
             f32 t = std::floorf(f30);
             bilerp[i] = f30 - t;
             biindex[i] = t;
-            biplus[i] = MIN(biindex[i] + 1, data->NumAnims[i]);
+            biplus[i] = (biindex[i] + 1 < data->NumAnims[i]) ? biindex[i] + 1 : biindex[i];
         }
 
         q0 = (xQuat*)(giAnimScratch + 3 * IANIM_POSE_SIZE);
@@ -832,20 +827,25 @@ static void _xAnimTableAddTransitionHelper(xAnimState* state, xAnimTransition* t
 void _xAnimTableAddTransition(xAnimTable* table, xAnimTransition* tran, const char* source,
                               const char* dest)
 {
-    U8* buffer = (U8*)giAnimScratch;
-    xAnimState** stateList = (xAnimState**)(giAnimScratch + 0x400);
+    U8* buffer;
+    xAnimState** stateList;
     U32 i;
-    U32 allocCount = 0;
+    U32 allocCount;
     U32 stateCount = 0;
     char* stateName;
 
     xAnimTransitionList* tlist;
     xAnimTransition* substTransitionList[32];
     U32 substTransitionCount = 0;
-    U8 hasSubst = false;
+    U8 hasSubst;
 
     char tempName[128];
     char extra[128];
+
+    buffer = (U8*)giAnimScratch;
+    stateList = (xAnimState**)(buffer + 0x400);
+    allocCount = 0;
+    hasSubst = false;
 
     if (dest != NULL)
     {
@@ -897,9 +897,8 @@ void _xAnimTableAddTransition(xAnimTable* table, xAnimTransition* tran, const ch
                                 allowMissingState = dest[i] == '~';
                                 U32 extraIteratorLength = strlen(tempIterator);
                                 strcpy(extraIterator, tempIterator);
-                                tempIterator += extraIteratorLength;
                                 extraIterator += extraIteratorLength;
-                                tempIterator++;
+                                tempIterator += extraIteratorLength + 1;
                             }
                             else
                             {
@@ -1328,16 +1327,17 @@ static void EffectSingleLoop(xAnimSingle* single)
     xAnimActiveEffect* alist = single->ActiveList;
     U32 index = 0;
     U32 count = single->ActiveCount;
-    while (index < count && alist[index].Effect != NULL)
+    while (index < count && alist->Effect != NULL)
     {
-        if (!(alist[index].Effect->Flags & 0x20))
+        if (!(alist->Effect->Flags & 0x20))
         {
-            alist[index].Effect->Callback(3, &alist[index], single, single->Play->Object);
+            alist->Effect->Callback(3, alist, single, single->Play->Object);
 
-            EffectActiveRemove(&alist[index], index, count);
+            EffectActiveRemove(alist, index, count);
         }
         else
         {
+            alist++;
             index++;
         }
     }

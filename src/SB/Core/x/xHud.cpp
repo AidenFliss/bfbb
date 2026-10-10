@@ -581,21 +581,11 @@ namespace xhud
         }
     }
 
-    // Equivalent: regalloc
     bool accelerate_motive_update(widget& w, motive& m, F32 dt)
     {
-        F32 remaining;
-        F32 diff;
-        F32 delta;
-
-        diff = 0.5f * m.accel;
-        delta = m.delta;
-        m.delta = dt * m.accel + delta;
-        delta *= dt;
-        diff *= dt;
-        diff = dt * diff + delta;
-
-        remaining = m.max_offset - m.offset;
+        F32 diff = 0.5f * m.accel * dt * dt + m.delta * dt;
+        m.delta += dt * m.accel;
+        F32 remaining = m.max_offset - m.offset;
 
         if ((diff >= 0.0f && diff >= remaining) || (diff < 0.0f && diff <= remaining))
         {
@@ -642,7 +632,7 @@ namespace xhud
         m.offset += dt;
         if (m.max_offset - m.offset < 0.0f)
         {
-            ((motive_proc*)m.context)(w, m, dt);
+            ((void (*)(widget&, motive&))m.context)(w, m);
             return false;
         }
         return true;

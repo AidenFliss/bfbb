@@ -203,8 +203,7 @@ void xEntBoulder_AddInstantForce(xEntBoulder* ent, xVec3* force)
 {
     if (ent->update != NULL)
     {
-        xVec3* frcptr = &ent->instForce;
-        xVec3AddTo(frcptr, force);
+        xVec3AddTo(&ent->instForce, force);
     }
 }
 
@@ -212,8 +211,7 @@ void xEntBoulder_AddForce(xEntBoulder* ent, xVec3* force)
 {
     if (ent->update != NULL)
     {
-        xVec3* frcptr = &ent->force;
-        xVec3AddTo(frcptr, force);
+        xVec3AddTo(&ent->force, force);
     }
 }
 

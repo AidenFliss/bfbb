@@ -1941,10 +1941,7 @@ void xFXStreakStop(U32 id)
 
     xFXStreak* s = &sStreakList[id];
 
-    // The `& 1` is redundant -- `(x == 0)` is already 0 or 1 -- but the target
-    // narrows the comparison to a single bit (`extrwi. 1,26` off the `cntlzw`),
-    // which only this spelling reproduces. `!s->flags` gives `cmplwi/beqlr`.
-    if ((s->flags == 0) & 1)
+    if (!s->flags & 0x1)
     {
         return;
     }

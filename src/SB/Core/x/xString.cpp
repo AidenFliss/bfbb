@@ -278,15 +278,14 @@ S32 xStrParseFloatList(F32* dest, const char* strbuf, S32 max)
         savech = *str;
 
         *str = '\0';
-        *dest = xatof(numstart);
+        dest[index] = xatof(numstart);
 
         if (negate)
         {
-            *dest = -*dest;
+            dest[index] = -dest[index];
         }
 
         *str = savech;
-        dest++;
     }
 
     return index;

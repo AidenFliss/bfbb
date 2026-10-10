@@ -237,178 +237,80 @@ F32 xDangleClamp(F32 a)
 
 void xAccelMove(F32& x, F32& v, F32 a, F32 dt, F32 endx, F32 maxv)
 {
-    // Todo: These variable names aren't all right.
-    F32 var_f31;
     F32 offset;
     F32 t1;
     F32 t2;
-    F32 oldv; //
-    F32 dv; //
-    F32 newv; //
+    F32 oldv;
+    F32 dv;
+    F32 newv;
     F32 adx;
     F32 diff;
     F32 dx;
 
-    F32 temp_f1_2;
-    S32 var_r0_4;
-    S32 var_r3_2;
-    S32 var_r3_3;
-    S32 var_r0;
-    S32 var_r0_2;
-    S32 var_r0_3;
-    S32 var_r3;
-    S32 var_r3_4;
-    S32 var_r4;
-    F32 var_f0;
-    F32 var_f2;
-    F32 temp_f29;
-    F32 temp_f28;
+    offset = endx - x;
+    t1 = (xabs(v) < 0.001f || ((offset < 0.0f) ? 1 : 0) != ((v < 0.0f) ? 1 : 0)) ? FLOAT_MAX
+                                                                                : offset / v;
+    t2 = xabs(v / a);
 
-    temp_f29 = endx - x;
-    var_r3 = 1; // Possible missing debug subroutine
-    if (!((F32)__fabs(v) < 0.001f))
-    {
-        if (v < 0.0f)
-        {
-            var_r4 = var_r3;
-        }
-        else
-        {
-            var_r4 = 0;
-        }
-        if (temp_f29 < 0.0f)
-        {
-            var_r0 = 1;
-        }
-        else
-        {
-            var_r0 = 0;
-        }
-        if (var_r0 == var_r4)
-        {
-            var_r3 = 0;
-        }
-    }
-    if (var_r3 & 0xff)
-    {
-        var_f31 = 1e38f;
-    }
-    else
-    {
-        var_f31 = temp_f29 / v;
-    }
-    temp_f28 = (F32)__fabs(v / a);
-    if (var_f31 < temp_f28)
+    if (t1 < t2)
     {
         a *= -1.0f;
     }
-    if (temp_f29 < 0.0f)
+
+    if (offset < 0.0f)
     {
         a *= -1.0f;
     }
+
     dv = a * dt;
     oldv = v;
-    newv = oldv + dv;
+    newv = v + dv;
 
-    if ((F32)__fabs(newv) <= maxv)
+    if (xabs(newv) <= maxv)
     {
         v = newv;
-        var_f0 = 0.5f * dv * dt;
+        adx = 0.5f * dv * dt;
+    }
+    else if (xabs(oldv) <= maxv)
+    {
+        v = range_limit(newv, -maxv, maxv);
+        if (oldv != v)
+        {
+            diff = v - oldv;
+            adx = 0.5f * diff * diff / a;
+        }
+        else
+        {
+            adx = 0.0f;
+        }
+    }
+    else if (((newv < 0.0f) ? 1 : 0) != ((dv < 0.0f) ? 1 : 0))
+    {
+        v = newv;
+        adx = 0.5f * dv * dt;
     }
     else
     {
-        if ((F32)__fabs(oldv) <= maxv)
-        {
-            v = range_limit(newv, -maxv, maxv);
-            if (oldv != v)
-            {
-                temp_f1_2 = v - oldv;
-                var_f0 = (0.5f * temp_f1_2 * temp_f1_2) / a;
-            }
-            else
-            {
-                var_f0 = 0.0f;
-            }
-        }
-        else
-        {
-            if (dv < 0.0f)
-            {
-                var_r3_2 = 1;
-            }
-            else
-            {
-                var_r3_2 = 0;
-            }
-            if (newv < 0.0f)
-            {
-                var_r0_2 = 1;
-            }
-            else
-            {
-                var_r0_2 = 0;
-            }
-            if (var_r0_2 != var_r3_2)
-            {
-                v = newv;
-                var_f0 = 0.5f * dv * dt;
-            }
-            else
-            {
-                var_f0 = 0.0f;
-            }
-        }
+        adx = 0.0f;
     }
-    var_f2 = (oldv * dt) + var_f0;
-    if (var_f31 > temp_f28)
+
+    dx = oldv * dt + adx;
+
+    if (t1 > t2)
     {
-        if (temp_f29 < 0.0f)
+        if (((dx < 0.0f) ? 1 : 0) == ((offset < 0.0f) ? 1 : 0) && xabs(dx) > xabs(offset))
         {
-            var_r3_3 = 1;
-        }
-        else
-        {
-            var_r3_3 = 0;
-        }
-        if (var_f2 < 0.0f)
-        {
-            var_r0_3 = 1;
-        }
-        else
-        {
-            var_r0_3 = 0;
-        }
-        if ((var_r0_3 == var_r3_3) && ((F32)__fabs(var_f2) > (F32)__fabs(temp_f29)))
-        {
-            var_f2 = temp_f29;
+            dx = offset;
             v = 0.0f;
         }
     }
-    else
+    else if (((dx < 0.0f) ? 1 : 0) != ((offset < 0.0f) ? 1 : 0))
     {
-        if (temp_f29 < 0.0f)
-        {
-            var_r3_4 = 1;
-        }
-        else
-        {
-            var_r3_4 = 0;
-        }
-        if (var_f2 < 0.0f)
-        {
-            var_r0_4 = 1;
-        }
-        else
-        {
-            var_r0_4 = 0;
-        }
-        if (var_r0_4 != var_r3_4)
-        {
-            var_f2 = temp_f29;
-            v = 0.0f;
-        }
+        dx = offset;
+        v = 0.0f;
     }
-    x += var_f2;
+
+    x += dx;
 }
 
 F32 xAccelMoveTime(F32 dx, F32 a, F32, F32 maxv)
@@ -471,59 +373,40 @@ void xAccelMove(F32& x, F32& v, F32 a, F32 dt, F32 maxv)
 
 void xAccelStop(F32& x, F32& v, F32 a, F32 dt)
 {
-    S32 aa; // From DWARF, currently unused.
-    F32 oldv;
+    F32 oldv = v;
 
-    S32 var_r0;
-    S32 var_r5;
-
-    oldv = v;
-    if (!(oldv >= -0.00001f) || !(oldv <= 0.00001f))
+    if (oldv >= -0.00001f && oldv <= 0.00001f)
     {
-        if (oldv < 0.0f)
-        {
-            if (a > 0.0f)
-            {
-                a = -a;
-            }
-        }
-        else if (a < 0.0f)
+        return;
+    }
+
+    if (oldv < 0.0f)
+    {
+        if (a > 0.0f)
         {
             a = -a;
         }
-
-        v += -a * dt;
-
-        if (v < 0.0f)
-        {
-            var_r5 = 1;
-        }
-        else
-        {
-            var_r5 = 0;
-        }
-
-        if (oldv < 0.0f)
-        {
-            var_r0 = 1;
-        }
-        else
-        {
-            var_r0 = 0;
-        }
-
-        if (var_r0 == var_r5)
-        {
-            x += (-a * (0.5f * dt * dt)) + (oldv * dt);
-            return;
-        }
-
-        if (!(-a >= -0.00001f) || !(-a <= 0.00001f))
-        {
-            x -= (0.5f * oldv * oldv) / -a;
-        }
-        v = 0.0f;
     }
+    else if (a < 0.0f)
+    {
+        a = -a;
+    }
+
+    a = -a;
+    v += a * dt;
+
+    if (((oldv < 0.0f) ? 1 : 0) == ((v < 0.0f) ? 1 : 0))
+    {
+        x += a * (0.5f * dt * dt) + oldv * dt;
+        return;
+    }
+
+    if (!(a >= -0.00001f && a <= 0.00001f))
+    {
+        x -= 0.5f * oldv * oldv / a;
+    }
+
+    v = 0.0f;
 }
 
 F32 xFuncPiece_Eval(xFuncPiece* func, F32 param, xFuncPiece** iterator)

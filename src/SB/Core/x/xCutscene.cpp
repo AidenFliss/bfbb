@@ -758,7 +758,6 @@ void xCutscene_Render(xCutscene* csn, xEnt**, S32*, F32*)
                 {
                     viscnt = csn->Info->VisCount;
                     U32* currvis = csn->Visibility;
-                    frameIndex = (U32)(30.0f * animTime);
 
                     while (viscnt)
                     {
@@ -768,10 +767,13 @@ void xCutscene_Render(xCutscene* csn, xEnt**, S32*, F32*)
 
                         if ((currvis[0] & 0xffff) == animIndex)
                         {
-                            j = (frameIndex > frameMax - frameMin) ? frameMax - frameMin
-                                                                   : frameIndex;
+                            frameIndex = 30.0f * animTime;
+                            if (frameIndex > frameMax - frameMin)
+                            {
+                                frameIndex = frameMax - frameMin;
+                            }
 
-                            if (!((currvis[2 + (j >> 5)] >> (j & 31)) & 1))
+                            if (!((currvis[(frameIndex >> 5) + 2] >> (frameIndex & 31)) & 1))
                             {
                                 visFlags &= ~(1 << subIndex);
                             }
@@ -859,11 +861,8 @@ void xCutscene_Render(xCutscene* csn, xEnt**, S32*, F32*)
                                         skipsize *= 2;
                                     }
 
-                                    v_array[0] =
-                                        (S16*)((U8*)mphFile +
-                                               skipsize * (frameIndex - 1) * 2 + 0x20);
-                                    v_array[1] =
-                                        (S16*)((U8*)mphFile + skipsize * frameIndex * 2 + 0x20);
+                                    v_array[0] = (S16*)(mphFile + 1) + skipsize * (frameIndex - 1);
+                                    v_array[1] = (S16*)(mphFile + 1) + skipsize * frameIndex;
 
                                     weight[1] =
                                         (S16)(16384.0f *

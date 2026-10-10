@@ -33,17 +33,14 @@ static U8 sMaterialAlpha[IMODEL_MAX_MATERIALS];
 RwFrame* GetChildFrameHierarchy(RwFrame* frame, void* data)
 {
     RpHAnimHierarchy* hierarchy = RpHAnimFrameGetHierarchy(frame);
-    if (hierarchy == 0)
+    if (hierarchy == NULL)
     {
-        RwFrameForAllChildren(frame, &GetChildFrameHierarchy, data);
+        RwFrameForAllChildren(frame, GetChildFrameHierarchy, data);
         return frame;
     }
-    else
-    {
-        *(RpHAnimHierarchy**)data = hierarchy;
-        frame = 0;
-    }
-    return frame;
+
+    *(RpHAnimHierarchy**)data = hierarchy;
+    return NULL;
 }
 
 void* GetHierarchy(RpAtomic* frame)
@@ -247,13 +244,15 @@ void iModelUnload(RpAtomic* userdata)
 
 static RpAtomic* NextAtomicCallback(RpAtomic* atomic, void* data)
 {
-    if (*(U32*)data == (U32)atomic)
+    RpAtomic** nextModel = (RpAtomic**)data;
+
+    if (*nextModel == atomic)
     {
-        *(U32*)data = 0;
+        *nextModel = NULL;
     }
-    else if (*(U32*)data == 0)
+    else if (*nextModel == NULL)
     {
-        *(RpAtomic**)data = atomic;
+        *nextModel = atomic;
     }
     return atomic;
 }
@@ -294,74 +293,65 @@ void iModelQuatToMat(xQuat* q, xVec3* a, RwMatrixTag* t)
 
 void iModelAnimMatrices(RpAtomic* model, xQuat* quat, xVec3* tran, RwMatrixTag* mat)
 {
-    RwMatrixTag* pMatrixArray;
-    RpHAnimNodeInfo* iVar1;
-    RwMatrixTag matrixStack[33];
-    U32 pCurrentFrameFlags;
-    RpHAnimNodeInfo* pCurrentFrame;
-    S32 numFrames;
+    RpHAnimHierarchy* pHierarchy;
+    RwMatrixTag matrixStack[32];
     RwMatrixTag* pMatrixStackTop;
+    RpHAnimNodeInfo* pCurrentFrame;
+    S32 pCurrentFrameFlags;
+    S32 i;
+    S32 numFrames;
+    RwMatrixTag* pMatrixArray;
+    RwMatrixTag parentMatrix;
+    RwMatrixTag frameMatrix;
+    RwMatrixTag tempMatrix;
+    RwMatrixTag* ptrMatrix;
 
-    pCurrentFrame = (RpHAnimNodeInfo*)GetHierarchy(model);
-
-    if (pCurrentFrame != NULL)
+    pHierarchy = (RpHAnimHierarchy*)GetHierarchy(model);
+    if (pHierarchy == NULL)
     {
-        // float/sda scheduling
-        pMatrixStackTop = &matrixStack[0];
-        pMatrixStackTop->at.z = 1.0f;
+        return;
+    }
 
-        matrixStack[0].up.y = 1.0f;
-        matrixStack[0].right.x = 1.0f;
-        matrixStack[0].up.x = 0.0f;
-        matrixStack[0].right.z = 0.0f;
-        matrixStack[0].right.y = 0.0f;
-        matrixStack[0].at.y = 0.0f;
-        matrixStack[0].at.x = 0.0f;
-        matrixStack[0].up.z = 0.0f;
-        matrixStack[0].pos.z = 0.0f;
-        matrixStack[0].pos.y = 0.0f;
-        matrixStack[0].pos.x = 0.0f;
-        matrixStack[0].flags |= 0x20003;
+    pMatrixStackTop = matrixStack;
 
-        // non-volatile registers are acting up and their instructions
-        // are being scheduled weirdly
-        matrixStack[1] = matrixStack[0];
-        numFrames = pCurrentFrame->nodeIndex;
-        pMatrixArray = (&matrixStack[1]);
-        iVar1 = (RpHAnimNodeInfo*)pCurrentFrame[1].nodeID;
+    RwMatrixSetIdentity(&parentMatrix);
+
+    *pMatrixStackTop = parentMatrix;
+    pMatrixStackTop++;
+
+    numFrames = pHierarchy->numNodes;
+    pCurrentFrame = pHierarchy->pNodeInfo;
+    pMatrixArray = mat;
+
+    for (i = 0; i < numFrames; i++)
+    {
+        pCurrentFrameFlags = pCurrentFrame->flags;
+
+        if (pCurrentFrameFlags & 2)
+        {
+            *pMatrixStackTop++ = parentMatrix;
+        }
+
+        iModelQuatToMat(quat, tran, &frameMatrix);
+        xMat4x3Mul((xMat4x3*)&tempMatrix, (const xMat4x3*)&frameMatrix,
+                   (const xMat4x3*)&parentMatrix);
+        *pMatrixArray = tempMatrix;
+
+        if (pCurrentFrameFlags & 1)
+        {
+            ptrMatrix = --pMatrixStackTop;
+        }
+        else
+        {
+            ptrMatrix = &tempMatrix;
+        }
+
+        parentMatrix = *ptrMatrix;
 
         pMatrixArray++;
-        for (S32 i = 0; i < numFrames; i++)
-        {
-            pCurrentFrameFlags = iVar1->flags;
-            if ((pCurrentFrameFlags & 2) != 0)
-            {
-                *pMatrixArray++ = matrixStack[0];
-            }
-
-            RwMatrixTag afStack_8e8;
-            iModelQuatToMat(quat, tran, &afStack_8e8);
-
-            RwMatrixTag auStack_8a8;
-            xMat4x3Mul((xMat4x3*)&auStack_8a8, (xMat4x3*)&afStack_8e8, (xMat4x3*)&matrixStack[0]);
-
-            *mat = auStack_8a8;
-            if ((pCurrentFrameFlags & 1) != 0)
-            {
-                pMatrixArray = &pMatrixArray[-1];
-                pMatrixStackTop = pMatrixArray;
-            }
-            else
-            {
-                pMatrixStackTop = (RwMatrixTag*)&auStack_8a8;
-            }
-            matrixStack[0] = *pMatrixStackTop;
-            mat++;
-            quat++;
-            tran++;
-            iVar1++;
-            // r27 and r28 swap
-        }
+        quat++;
+        tran++;
+        pCurrentFrame++;
     }
 }
 
@@ -539,14 +529,12 @@ static inline void SkinXform(xVec3* dest, const xVec3* vert, RwMatrix* mat, cons
     {
         for (U32 i = 0; i < 4; i++)
         {
-            U32 r18 = ((*idx >> (i << 3)) >> 5) & 0x7;
-            U32 r29 = 1 << ((*idx >> (i << 3)) & 0x1F);
             U32 midx = (*idx >> (i << 3)) & 0xFF;
-            if (!(r29 & catMatFlags[r18]))
+            if (!(catMatFlags[midx >> 5] & (1 << (midx & 0x1F))))
             {
                 xMat4x3Mul((xMat4x3*)(catmat + midx), (const xMat4x3*)(skinmat + midx),
                            (const xMat4x3*)(mat + midx));
-                catMatFlags[r18] |= r29;
+                catMatFlags[midx >> 5] |= 1 << (midx & 0x1F);
             }
         }
 
@@ -558,9 +546,10 @@ static inline void SkinXform(xVec3* dest, const xVec3* vert, RwMatrix* mat, cons
         U32 wtidx = *idx;
         U32 maxwt = 4;
 
-        while (*fwt != 0.0f && maxwt)
+        while (*fwt && maxwt)
         {
             pMatrix = catmat + (wtidx & 0xFF);
+            wtidx >>= 8;
 
             accumV.x += *fwt * (pMatrix->right.x * vert->x + pMatrix->up.x * vert->y +
                                 pMatrix->at.x * vert->z + pMatrix->pos.x);
@@ -570,7 +559,6 @@ static inline void SkinXform(xVec3* dest, const xVec3* vert, RwMatrix* mat, cons
                                 pMatrix->at.z * vert->z + pMatrix->pos.z);
 
             fwt++;
-            wtidx >>= 8;
             maxwt--;
         }
 
@@ -667,9 +655,10 @@ static inline void SkinNormals(xVec3* dest, const xVec3* normal, const RwMatrix*
         U32 wtidx = *idx;
         U32 maxwt = 4;
 
-        while (*fwt != 0.0f && maxwt)
+        while (*fwt && maxwt)
         {
             pMatrix = catmat + (wtidx & 0xFF);
+            wtidx >>= 8;
 
             accumV.x += *fwt * (pMatrix->right.x * normal->x + pMatrix->up.x * normal->y +
                                 pMatrix->at.x * normal->z);
@@ -679,7 +668,6 @@ static inline void SkinNormals(xVec3* dest, const xVec3* normal, const RwMatrix*
                                 pMatrix->at.z * normal->z);
 
             fwt++;
-            wtidx >>= 8;
             maxwt--;
         }
 
@@ -1004,10 +992,7 @@ void iModelResetMaterial(RpAtomic* model)
 
 RpMaterial* iModelSetMaterialTextureCB(RpMaterial* material, void* data)
 {
-    int i = sMaterialIdx;
-    RwTexture* texture = material->texture;
-    sMaterialIdx++;
-    sMaterialTexture[i] = texture;
+    sMaterialTexture[sMaterialIdx++] = material->texture;
     RpMaterialSetTexture(material, (RwTexture*)data);
     return material;
 }

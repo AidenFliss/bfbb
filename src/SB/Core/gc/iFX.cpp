@@ -39,9 +39,9 @@ struct rwGameCubeDisplayList
     U32 size;
 };
 
-// Instanced geometry, stored immediately after the RwResEntry. Both trailing
-// arrays are variable length and lie back to back, so the display list for the
-// first mesh is dl[numStreams - 1].
+// Instanced geometry, stored immediately after the RwResEntry. The stream array
+// is variable length, and the per-mesh display lists follow its last entry, so
+// the first one sits numStreams - 1 entries past the end of this header.
 struct rwGameCubeResEntryHeader
 {
     U16 serialNum; // 0x00
@@ -49,7 +49,6 @@ struct rwGameCubeResEntryHeader
     U32 flags; // 0x04
     U32 numStreams; // 0x08
     rwGameCubeVtxStream streams[1]; // 0x0C
-    rwGameCubeDisplayList dl[1]; // 0x14
 };
 
 struct RxGameCubePipeData
@@ -90,7 +89,7 @@ static void* _iGCUVRenderCallback(void* object, RxGameCubePipeData* gcPipeData)
     rwGameCubeResEntryHeader* header = (rwGameCubeResEntryHeader*)(resEntry + 1);
 
     U32 numExtraStreams = header->numStreams - 1;
-    rwGameCubeDisplayList* dlist = &header->dl[numExtraStreams];
+    rwGameCubeDisplayList* dlist = (rwGameCubeDisplayList*)(header + 1) + numExtraStreams;
 
     header->serialNum = _RwDlTokenCurrent;
 

@@ -590,16 +590,16 @@ void iParMgrRenderParSys_Streak(void* data, xParGroup* ps)
         px = idx->m_pos.x;
         py = idx->m_pos.y;
         pz = idx->m_pos.z;
+        size = idx->m_size;
+        dx = size * gRenderBuffer.m_camViewR.x;
+        dy = size * gRenderBuffer.m_camViewR.y;
+        dz = size * gRenderBuffer.m_camViewR.z;
         tx = px - 5.0f * idx->m_vel.x;
         ty = py - 5.0f * idx->m_vel.y;
         tz = pz - 5.0f * idx->m_vel.z;
         ax = tx;
         ay = ty;
         az = tz;
-        size = idx->m_size;
-        dx = size * gRenderBuffer.m_camViewR.x;
-        dy = size * gRenderBuffer.m_camViewR.y;
-        dz = size * gRenderBuffer.m_camViewR.z;
 
         tx -= dx;
         ty -= dy;
@@ -695,24 +695,23 @@ void iParMgrRenderParSys_InvStreak(void* data, xParGroup* ps)
         // and added into a copy of itself for the other, which is what retail's
         // three `fmr` copies encode.  Declaration order is the FP colour order.
         F32 dx, dy, dz;
-        F32 tx, ty, tz;
-        F32 ax, ay, az;
+        F32 tx, ax, ty, ay, tz, az;
         F32 px, py, pz;
         F32 size;
 
         px = idx->m_pos.x;
         py = idx->m_pos.y;
         pz = idx->m_pos.z;
-        tx = px - 5.0f * idx->m_vel.x;
-        ty = py - 5.0f * idx->m_vel.y;
-        tz = pz - 5.0f * idx->m_vel.z;
-        ax = tx;
-        ay = ty;
-        az = tz;
         size = idx->m_size;
         dx = size * gRenderBuffer.m_camViewR.x;
         dy = size * gRenderBuffer.m_camViewR.y;
         dz = size * gRenderBuffer.m_camViewR.z;
+        tx = px - 5.0f * idx->m_vel.x;
+        ax = tx;
+        ty = py - 5.0f * idx->m_vel.y;
+        ay = ty;
+        tz = pz - 5.0f * idx->m_vel.z;
+        az = tz;
 
         tx -= dx;
         ty -= dy;

@@ -100,14 +100,18 @@ static void xCMprep(xCreditsData* data)
 
 static iColor_tag xCMcolor_scale(iColor_tag color, F32 t)
 {
-    F32 r = (F32)color.r;
-    F32 g = (F32)color.g;
-    F32 b = (F32)color.b;
-    F32 a = (F32)color.a * t;
+    iColor_tag tmp = color;
+    iColor_tag tmp2 = tmp;
 
-    iColor_tag ret;
-    xColorInit(&ret, (U8)r, (U8)g, (U8)b, (U8)a);
-    return ret;
+    F32 r = (F32)tmp2.r;
+    F32 g = (F32)tmp2.g;
+    F32 b = (F32)tmp2.b;
+    F32 a = (F32)tmp2.a;
+
+    a *= t;
+
+    xColorInit(&tmp, (U8)r, (U8)g, (U8)b, (U8)a);
+    return tmp;
 }
 
 void __deadstripped_strings(xCMpreset* preset)

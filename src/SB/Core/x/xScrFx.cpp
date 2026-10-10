@@ -495,7 +495,7 @@ void xScrFXGlareRender(xCamera* cam)
 
         F32 dot = glareDir.dot(v);
 
-        F32 val = (1.0f + dot) * 0.5f;
+        F32 val = (1.0f + dot) / 2.0f;
         val *= val * val * val;
 
         F32 glareDirLen = xVec3Length(&glareDir);

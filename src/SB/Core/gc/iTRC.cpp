@@ -63,8 +63,7 @@ BOOL ROMFont::Init()
         ROMFont::mFontData = (OSFontHeader*)OSAllocFromHeap(__OSCurrHeap, 0x20120);
     }
 
-    OSFontHeader* volatile& hack = ROMFont::mFontData;
-    return OSInitFont(hack);
+    return OSInitFont(ROMFont::mFontData);
 }
 
 void ROMFont::InitDisplay(_GXRenderModeObj* InRenderMode)

@@ -479,14 +479,14 @@ xPar* xParEmitterEmit(xParEmitter* pe, F32 emit_dt, F32 par_dt)
     pe->rate_fraction = pe->rate_fraction + rate * emit_dt;
     pe->rate_fraction_cull = pe->rate_fraction_cull + rate * emit_dt;
 
-    rate_has_elapsed = std::floorf(pe->rate_fraction);
+    count = std::floorf(pe->rate_fraction);
 
-    if (rate_has_elapsed > 0)
+    if (count > 0)
     {
-        pe->rate_fraction = pe->rate_fraction - rate_has_elapsed;
+        pe->rate_fraction = pe->rate_fraction - count;
     }
 
-    if (rate_has_elapsed == 0)
+    if (count == 0)
     {
         return NULL;
     }
@@ -514,13 +514,13 @@ xPar* xParEmitterEmit(xParEmitter* pe, F32 emit_dt, F32 par_dt)
     }
 
     if ((ps->tasset->maxPar != 0) &&
-        (ps->group->m_num_of_particles + rate_has_elapsed >= (S32)ps->tasset->maxPar))
+        (ps->group->m_num_of_particles + count >= (S32)ps->tasset->maxPar))
     {
-        rate_has_elapsed = ps->tasset->maxPar - ps->group->m_num_of_particles;
+        count = ps->tasset->maxPar - ps->group->m_num_of_particles;
     }
 
     xBase* emitObj = (xBase*)pe->attachTo;
-    count = -1;
+    attachGroupIndex = -1;
     attachGroupTotal = -1;
 
     do
@@ -533,10 +533,10 @@ xPar* xParEmitterEmit(xParEmitter* pe, F32 emit_dt, F32 par_dt)
         {
             xGroup* g = (xGroup*)emitObj;
 
-            if (count == -1)
+            if (attachGroupIndex == -1)
             {
                 attachGroupTotal = xGroupGetCount(g);
-                count = 0;
+                attachGroupIndex = 0;
             }
 
             if (g->asset->groupFlags & 1)
@@ -547,8 +547,7 @@ xPar* xParEmitterEmit(xParEmitter* pe, F32 emit_dt, F32 par_dt)
 
                 if (attachObject == NULL)
                 {
-                    attachGroupIndex = xGroupGetItem(g, get_rnd_group_idx);
-                    attachObject = (xBase*)xSTFindAsset(attachGroupIndex, NULL);
+                    attachObject = (xBase*)xSTFindAsset(xGroupGetItem(g, get_rnd_group_idx), NULL);
 
                     if (attachObject != NULL)
                     {
@@ -558,12 +557,11 @@ xPar* xParEmitterEmit(xParEmitter* pe, F32 emit_dt, F32 par_dt)
             }
             else
             {
-                attachObject = xGroupGetItemPtr(g, count);
+                attachObject = xGroupGetItemPtr(g, attachGroupIndex);
 
                 if (attachObject == NULL)
                 {
-                    attachGroupIndex = xGroupGetItem(g, count);
-                    attachObject = (xBase*)xSTFindAsset(attachGroupIndex, NULL);
+                    attachObject = (xBase*)xSTFindAsset(xGroupGetItem(g, attachGroupIndex), NULL);
 
                     if (attachObject != NULL)
                     {
@@ -571,8 +569,8 @@ xPar* xParEmitterEmit(xParEmitter* pe, F32 emit_dt, F32 par_dt)
                     }
                 }
 
-                count++;
-                emitAgain = count < attachGroupTotal;
+                attachGroupIndex++;
+                emitAgain = attachGroupIndex < attachGroupTotal;
             }
         }
         else
@@ -642,7 +640,7 @@ xPar* xParEmitterEmit(xParEmitter* pe, F32 emit_dt, F32 par_dt)
                 emitvel = 0.0f;
             }
 
-            for (i = 0; i < rate_has_elapsed; i++)
+            for (i = 0; i < count; i++)
             {
                 p = xParGroupAddPar(ps->group);
 

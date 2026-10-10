@@ -492,8 +492,6 @@ void iBoxIsectRay(const xBox* b, const xRay3* r, xIsect* isx)
         ((xRay3*)r)->max_t = 1.0f;
     }
 
-    // non-matching: incorrect instruction order
-
     t_in = -9.9999997e37f;
     t_out = 9.9999997e37f;
 
@@ -501,13 +499,12 @@ void iBoxIsectRay(const xBox* b, const xRay3* r, xIsect* isx)
     var_14.y = b->upper.y - b->lower.y;
     var_14.z = b->upper.z - b->lower.z;
 
-    var_20.x = b->lower.x + b->upper.x;
-    var_20.y = b->lower.y + b->upper.y;
-
     var_14.x *= 0.5f;
     var_14.y *= 0.5f;
     var_14.z *= 0.5f;
 
+    var_20.x = b->lower.x + b->upper.x;
+    var_20.y = b->lower.y + b->upper.y;
     var_20.z = b->lower.z + b->upper.z;
 
     var_20.x *= -0.5f;

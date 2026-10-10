@@ -411,10 +411,10 @@ void xShadowSimple_CacheInit(xShadowSimpleCache* cache, xEnt* ent, U8 alpha)
     {
         sst = (zSimpleShadowTableHeader*)xSTFindAssetByType('SHDW', i, &size);
 
-        zSimpleShadowTableEntry* entries = (zSimpleShadowTableEntry*)(sst + 1);
-
         for (j = 0; j < sst->num; j++)
         {
+            zSimpleShadowTableEntry* entries = (zSimpleShadowTableEntry*)(sst + 1);
+
             if (ent->model->modelID == entries[j].modelID)
             {
                 tex = (RwTexture*)xSTFindAsset(entries[j].assetID, NULL);

@@ -498,11 +498,9 @@ static void XST_unlock(st_STRAN_SCENE* sdata)
 {
     if (sdata != NULL)
     {
-        U32 mask = 1 << sdata->lockid;
-
-        if (g_xstdata.loadlock & mask)
+        if (g_xstdata.loadlock & 1U << sdata->lockid)
         {
-            g_xstdata.loadlock = g_xstdata.loadlock & ~mask;
+            g_xstdata.loadlock &= ~(1U << sdata->lockid);
             memset(sdata, 0, sizeof(st_STRAN_SCENE));
         }
     }
