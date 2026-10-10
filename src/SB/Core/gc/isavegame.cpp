@@ -659,7 +659,7 @@ S32 iSGSaveFile(st_ISGSESSION* isgdata, const char* fname, char* data, S32 n, S3
     ResetButton::DisableReset();
     if (isgdata->slot < 0)
     {
-        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_opstat = ISG_OPSTAT_FAILURE;
         isgdata->as_operr = ISG_OPERR_NOCARD;
         return 0;
     }
@@ -667,7 +667,7 @@ S32 iSGSaveFile(st_ISGSESSION* isgdata, const char* fname, char* data, S32 n, S3
     st_ISG_MEMCARD_DATA* mcdata = &isgdata->mcdata[isgdata->slot];
     if (mcdata->cardIsIll != 0)
     {
-        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_opstat = ISG_OPSTAT_FAILURE;
         isgdata->as_operr = ISG_OPERR_DAMAGE;
         return 0;
     }
@@ -737,11 +737,11 @@ S32 iSGSaveFile(st_ISGSESSION* isgdata, const char* fname, char* data, S32 n, S3
     isgdata->as_operr = ISG_OPERR_NONE;
     if (writeret != 0)
     {
-        isgdata->as_fakestat = ISG_OPSTAT_SUCCESS;
+        isgdata->as_opstat = ISG_OPSTAT_SUCCESS;
     }
     else
     {
-        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_opstat = ISG_OPSTAT_FAILURE;
         if (operr != ISG_OPERR_NONE)
         {
             isgdata->as_operr = operr;
@@ -775,7 +775,7 @@ S32 iSGReadLeader(st_ISGSESSION* isgdata, const char* fname, char* databuf, S32 
     en_ASYNC_OPERR operr = ISG_OPERR_NONE;
     if (isgdata->slot < 0)
     {
-        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_opstat = ISG_OPSTAT_FAILURE;
         isgdata->as_operr = ISG_OPERR_NOCARD;
         return 0;
     }
@@ -783,7 +783,7 @@ S32 iSGReadLeader(st_ISGSESSION* isgdata, const char* fname, char* databuf, S32 
 
     if (data->cardIsIll != 0)
     {
-        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_opstat = ISG_OPSTAT_FAILURE;
         isgdata->as_operr = ISG_OPERR_DAMAGE;
         return 0;
     }
@@ -833,11 +833,11 @@ S32 iSGReadLeader(st_ISGSESSION* isgdata, const char* fname, char* databuf, S32 
     isgdata->as_operr = ISG_OPERR_NONE;
     if (readret != 0)
     {
-        isgdata->as_fakestat = ISG_OPSTAT_SUCCESS;
+        isgdata->as_opstat = ISG_OPSTAT_SUCCESS;
     }
     else
     {
-        isgdata->as_fakestat = ISG_OPSTAT_FAILURE;
+        isgdata->as_opstat = ISG_OPSTAT_FAILURE;
         if (data->cardIsIll != 0)
         {
             isgdata->as_operr = ISG_OPERR_DAMAGE;
@@ -852,7 +852,7 @@ S32 iSGReadLeader(st_ISGSESSION* isgdata, const char* fname, char* databuf, S32 
 
 en_ASYNC_OPSTAT iSGPollStatus(st_ISGSESSION* isgdata, en_ASYNC_OPCODE* curop, S32 block)
 {
-    return isgdata->as_fakestat;
+    return isgdata->as_opstat;
 }
 
 en_ASYNC_OPERR iSGOpError(st_ISGSESSION* isgdata, char* errmsg)

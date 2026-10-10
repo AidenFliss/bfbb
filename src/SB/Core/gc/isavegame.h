@@ -130,7 +130,7 @@ struct st_ISGSESSION
     S32 slot;
     S32 unk_264;
     en_ASYNC_OPERR as_operr;
-    en_ASYNC_OPSTAT as_fakestat;
+    en_ASYNC_OPSTAT as_opstat;
     S32 unk_270;
     void (*chgfunc)(void*, en_CHGCODE); // 0x274
     void* cltdata; // 0x278
