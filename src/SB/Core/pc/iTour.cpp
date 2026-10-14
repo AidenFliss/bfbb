@@ -4,6 +4,7 @@
 #include "iPadBind.h"
 #include "iPadHost.h"
 #include "iSnapshot.h"
+#include "iTime.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -190,6 +191,8 @@ namespace
 
     void Frame()
     {
+        iTimeStep();
+
         const Step* s = &sSteps[sAt];
 
         switch (s->op)
@@ -285,6 +288,8 @@ void iTourInit()
     printf("bfbb: tour: %d steps from %s, shots to %s\n", (int)sCount, script,
            sOutDir[0] != '\0' ? sOutDir : "the current folder");
     fflush(stdout);
+
+    iTimeFixedStep(60);
 
     sAt = 0;
     Begin();

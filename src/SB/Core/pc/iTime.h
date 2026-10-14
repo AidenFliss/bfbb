@@ -45,6 +45,13 @@ F32 iTimeDiffSec(iTime time);
 // suspension until it is resumed.
 void iTimeSuspend();
 void iTimeResume();
+// Replace the host clock with one that starts at zero and moves only when
+// iTimeStep is called, by 1/fps of a second each time. For iTour.h, which
+// steps it once per presented frame; iVSync steps it too. With every frame's
+// delta and the random seed taken from this clock, a tour plays the same way
+// each run.
+void iTimeFixedStep(U32 fps);
+void iTimeStep();
 void iTimeGameAdvance(F32 elapsed);
 void iTimeSetGame(F32 time);
 void iProfileClear(U32 sceneID);

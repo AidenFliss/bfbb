@@ -11,8 +11,9 @@
 //
 // Port 0 reads the script and nothing else; real controllers and the keyboard
 // are ignored. The window is created hidden and stays windowed, so the render
-// size is video.width x video.height. The frame rate is held at 60 so that
-// counts below are seconds / 60.
+// size is video.width x video.height. The game's clock advances exactly 1/60
+// of a second per frame (iTimeFixedStep), so counts below are seconds / 60 and
+// a script plays the same way each run.
 //
 // One command a line; `#` starts a comment. Counts are in presented frames.
 //

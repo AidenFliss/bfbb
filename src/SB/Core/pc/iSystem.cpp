@@ -79,6 +79,10 @@ static U64 sNextVSync;
 
 void iVSync()
 {
+    // Callers wait out a duration in vsyncs without presenting; under
+    // iTimeFixedStep each one is a step of the game clock.
+    iTimeStep();
+
     U64 now = iHostMonotonicNs();
 
     if (!sVSyncStarted)
