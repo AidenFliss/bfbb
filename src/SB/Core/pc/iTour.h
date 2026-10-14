@@ -19,7 +19,8 @@
 //   wait N              do nothing for N frames
 //   press B [B...]      hold the buttons 4 frames, then release for 4
 //   hold N B [B...]     hold the buttons N frames, then release for 4
-//   shot NAME           write NAME.png, at most 1280 wide
+//   shot NAME [WIDTH]   write NAME.png, at most WIDTH wide (default 1280; 0
+//                       keeps the render size)
 //   quit                exit the process
 //
 // Buttons are the [pad] names from config.ini: a b x y z hud l1 r1 l2 r2 start

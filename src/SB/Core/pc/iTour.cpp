@@ -24,6 +24,7 @@ namespace
         Op op;
         S32 frames;
         U32 buttons;
+        S32 width;
         char name[64];
     };
 
@@ -138,11 +139,18 @@ namespace
             {
                 s->op = OP_SHOT;
                 s->frames = kShotRetry;
-                if (*p == '\0' || strlen(p) >= sizeof(s->name))
+                s->width = kShotWidth;
+                char* name = strtok(p, " \t");
+                if (name == NULL || strlen(name) >= sizeof(s->name))
                 {
                     Fail(line, "shot needs a short name", p);
                 }
-                strcpy(s->name, p);
+                strcpy(s->name, name);
+                char* width = strtok(NULL, " \t");
+                if (width != NULL)
+                {
+                    s->width = atoi(width);
+                }
             }
             else if (strcmp(cmd, "quit") == 0)
             {
@@ -212,7 +220,7 @@ namespace
         {
             char path[640];
             snprintf(path, sizeof(path), "%s%s.png", sOutDir, s->name);
-            if (iFrameGrabWrite(path, kShotWidth))
+            if (iFrameGrabWrite(path, s->width))
             {
                 printf("bfbb: tour: wrote %s\n", path);
                 fflush(stdout);
