@@ -859,6 +859,13 @@ target_compile_options(bfbb_rw PRIVATE ${BFBB_NO_WARNINGS})
 # 1.66 backend split, so an older imgui is likely). imgui_demo.cpp is not
 # optional: ShowDemoWindow lives in it and nowhere else.
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/librw/skeleton/imgui)
+# librw's skeleton/ sits one level up and its own librw_skeleton target exposes
+# it as a PUBLIC include. This target is separate from that one, and the vendored
+# imgui_impl_rw.cpp includes <skeleton.h> and "imgui/imgui.h", both of which
+# resolve against skeleton/ -- so that directory has to be on this path too, or
+# the file dies with 'skeleton.h' file not found. skeleton/imgui stays because the
+# port's own code includes "imgui.h" directly from it.
+set(LIBRW_SKELETON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/librw/skeleton)
 add_library(imgui STATIC
   ${IMGUI_DIR}/imgui.cpp
   ${IMGUI_DIR}/imgui_draw.cpp
@@ -867,7 +874,7 @@ add_library(imgui STATIC
   ${IMGUI_DIR}/imgui_demo.cpp
   ${IMGUI_DIR}/imgui_impl_rw.cpp
 )
-target_include_directories(imgui PUBLIC ${IMGUI_DIR})
+target_include_directories(imgui PUBLIC ${LIBRW_SKELETON_DIR} ${IMGUI_DIR})
 target_link_libraries(imgui PUBLIC librw)
 target_compile_options(imgui PRIVATE ${BFBB_NO_WARNINGS})
 

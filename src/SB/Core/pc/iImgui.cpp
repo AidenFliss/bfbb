@@ -14,6 +14,15 @@
 // the virtual screen (iScreen), the space the backend's Im2D vertices land in,
 // and the mouse is mapped into it by inverting librw's present blit.
 
+// librw first, and specifically ahead of types.h below: types.h does
+// `#define null 0` and librw has a `namespace null`, so the two cannot be in
+// one translation unit in the other order (the same rule backend.h notes).
+// skeleton.h needs rw.h's types, and it in turn pulls imgui/imgui.h and
+// imgui_impl_rw.h -- the header that declares ImGui_ImplRW_Init and friends,
+// and which wants sk::EventStatus/sk::Event that skeleton.h defines.
+#include <rw.h>
+#include <skeleton.h>
+
 #include "iImgui.h"
 
 #include <ctype.h>
@@ -50,6 +59,21 @@
 #include "imgui_impl_rw.h"
 
 #include <SDL3/SDL.h>
+
+// librw's imgui backend, imgui_impl_rw.cpp, is written against librw's own
+// skeleton: it reads sk::globals for the display size and would call
+// sk::SetMousePosition to warp the cursor. This port does not run librw's
+// skeleton -- it has its own window, input and main loop, and LIBRW_TOOLS is
+// forced off so librw never builds that code -- so the two symbols the backend
+// needs at link time are supplied here. globals.width/height are refreshed from
+// the port's screen every frame in iImguiNewFrame, which is what feeds
+// io.DisplaySize when ImGui_ImplRW_NewFrame reads them back. SetMousePosition
+// is a no-op: the port runs one fullscreen window, never enables viewports, and
+// so never sets WantSetMousePos for this to act on.
+namespace sk {
+    Globals globals;
+    void SetMousePosition(int, int) {}
+}
 
 // The soak test's scene-switch portal, defined in zGame.cpp. Reused rather
 // than duplicated: the scene-switch and menu paths both read whichever portal
@@ -1552,6 +1576,10 @@ void iImguiNewFrame()
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(iScreenWidthF(), iScreenHeightF());
+    // ImGui_ImplRW_NewFrame reads io.DisplaySize back out of sk::globals (see
+    // the shim above), so refresh it there too or the frame runs at 0x0.
+    sk::globals.width = iScreenWidth();
+    sk::globals.height = iScreenHeight();
     iImguiFeedMouse();
     iImguiFeedKeyboard();
 
