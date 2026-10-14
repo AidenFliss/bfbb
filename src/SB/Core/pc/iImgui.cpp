@@ -70,10 +70,13 @@
 // io.DisplaySize when ImGui_ImplRW_NewFrame reads them back. SetMousePosition
 // is a no-op: the port runs one fullscreen window, never enables viewports, and
 // so never sets WantSetMousePos for this to act on.
-namespace sk {
+namespace sk
+{
     Globals globals;
-    void SetMousePosition(int, int) {}
-}
+    void SetMousePosition(int, int)
+    {
+    }
+} // namespace sk
 
 // The soak test's scene-switch portal, defined in zGame.cpp. Reused rather
 // than duplicated: the scene-switch and menu paths both read whichever portal
