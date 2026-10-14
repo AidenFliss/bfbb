@@ -367,11 +367,14 @@ jobs:
 
           | File | Platform |
           | --- | --- |
-          | `bfbb-windows-x86.zip` | Windows. Direct3D 9, Direct3D 11 and OpenGL in one executable. Take this one. |
+          | `bfbb-windows-x86.zip` | Windows. Direct3D 9, Direct3D 11, OpenGL and Vulkan in one executable. Take this one. |
           | `bfbb-windows-x86_64.zip` | Windows, 64-bit. |
-          | `bfbb-linux-x86_64.tar.gz` | Linux, OpenGL. |
-          | `bfbb-macos-x86_64.tar.gz` | macOS on Intel, OpenGL. Unsigned: run `xattr -dr com.apple.quarantine` on the folder first. |
-          | `bfbb-arm64-v8a.apk` | Android 7.0 or newer, arm64. Debug-signed. |
+          | `bfbb-linux-x86_64.tar.gz` | Linux, OpenGL and Vulkan. |
+          | `bfbb-macos-x86_64.tar.gz` | macOS on Intel, OpenGL. Vulkan is built in and untested there. Unsigned: run `xattr -dr com.apple.quarantine` on the folder first. |
+          | `bfbb-arm64-v8a.apk` | Android 7.0 or newer, arm64, OpenGL ES and Vulkan. Debug-signed. |
+
+          `[video] backend` in `config.ini` picks the renderer. `auto` takes Direct3D 9
+          on Windows and OpenGL elsewhere.
 
           A platform whose build failed for this commit is missing from the files.
 
@@ -433,17 +436,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # An empty backend means the host default, which is D3D9, D3D11 and
-          # GL3 on Windows and GL3 elsewhere. `msvc` and `bits` are read only on
-          # Windows; off it the word size is the host's and there is no choice.
-          - { os: windows-latest, backend: "", name: windows-x86,    msvc: x86, bits: "" }
-          - { os: windows-latest, backend: "", name: windows-x86_64, msvc: x64, bits: "-DBFBB_BUILD_32BIT=OFF" }
-          - { os: ubuntu-latest,  backend: "", name: linux-x86_64 }
+          # The host default plus Vulkan, which is not in the default set.
+          # video.backend = auto still takes D3D9 on Windows and GL3 elsewhere:
+          # rw/backend.cpp tries Vulkan last. `msvc` and `bits` are read only
+          # on Windows; off it the word size is the host's and there is no
+          # choice.
+          - { os: windows-latest, backend: "D3D9;D3D11;GL3;VULKAN", name: windows-x86,    msvc: x86, bits: "" }
+          - { os: windows-latest, backend: "D3D9;D3D11;GL3;VULKAN", name: windows-x86_64, msvc: x64, bits: "-DBFBB_BUILD_32BIT=OFF" }
+          - { os: ubuntu-latest,  backend: "GL3;VULKAN", name: linux-x86_64 }
           # macos-latest is absent on purpose. An arm64 build compiles and then
           # is SIGKILLed at exec, because the game arena needs a low 4 GB that
           # Apple Silicon will not give up -- see the unix job. Publishing a
           # binary that cannot start is worse than publishing none.
-          - { os: macos-15-intel, backend: "", name: macos-x86_64 }
+          - { os: macos-15-intel, backend: "GL3;VULKAN", name: macos-x86_64 }
 
     steps:
       - name: Checkout
@@ -456,7 +461,7 @@ jobs:
       - name: Submodules
         shell: bash
         run: |
-          git submodule update --init --recursive third_party/librw third_party/SDL
+          git submodule update --init --recursive third_party/librw third_party/SDL             third_party/Vulkan-Headers third_party/volk third_party/VulkanMemoryAllocator
           if [ "$RUNNER_OS" = "Windows" ]; then
             git submodule update --init --recursive third_party/wxWidgets
           fi
@@ -579,7 +584,7 @@ jobs:
           cmake -S . -B build-pkg -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DBFBB_SDL=vendored
-          ${{ matrix.backend != '' && format('-DBFBB_RENDER_BACKENDS={0}', matrix.backend) || '' }}
+          "-DBFBB_RENDER_BACKENDS=${{ matrix.backend }}"
           ${{ matrix.bits }}
           -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=dist
           -DCMAKE_PREFIX_PATH="$BFBB_PREFIX"
