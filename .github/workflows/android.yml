@@ -90,6 +90,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Pinned: the runner's own Gradle moved to 9, which cannot resolve the
+      # Android Gradle plugin 8.7.3's classpath.
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
       # The runner image ships an SDK and at least one NDK; android/app/build.
       # gradle pins the NDK version it wants and Gradle installs it if the
       # image's is not that one.
