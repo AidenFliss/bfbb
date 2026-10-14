@@ -7,6 +7,8 @@ compiled from decompiled game code and librw. Not an emulator or a wrapper.
 Upstream decomp: [bfbbdecomp/bfbb](https://github.com/bfbbdecomp/bfbb) ·
 [Docs](docs/README.md)
 
+![The title screen at 1920x1080](tests/snapshots/title_1080p.png)
+
 ## Status
 
 - The game can be played start to finish. Known bugs remain.
