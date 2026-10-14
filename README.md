@@ -34,9 +34,8 @@ Upstream decomp: [bfbbdecomp/bfbb](https://github.com/bfbbdecomp/bfbb) ·
 2. Run `bfbb.exe` once. It writes `config.ini` beside itself and stops.
 3. Set `[assets] path` in `config.ini` to your extracted Xbox files. Run it again.
 
-The downloads are built without FFmpeg and libusb: no intro movies, no
-soundtrack replacement, and no Switch 2 controllers or GameCube adapter.
-[Build it yourself](#building) for those.
+The macOS download has no libusb, so Switch 2 controllers and the GameCube
+adapter do not work on it.
 
 ## Getting the assets
 

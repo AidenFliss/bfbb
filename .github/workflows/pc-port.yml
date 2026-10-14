@@ -375,10 +375,8 @@ jobs:
 
           A platform whose build failed for this commit is missing from the files.
 
-          FFmpeg and libusb are not on the build machines. The desktop builds do
-          not play the intro movies, `[audio] soundtrack` does nothing, and Switch 2
-          controllers and the GameCube adapter do not work. Build it yourself for
-          those.
+          The macOS build has no libusb, so Switch 2 controllers and the GameCube
+          adapter do not work on it.
           NOTES
           echo "" >> notes.md
           echo "Built from \`$GITHUB_REF_NAME\` at \`$GITHUB_SHA\`." >> notes.md
@@ -418,9 +416,8 @@ jobs:
   # in it either -- the game writes one with the defaults on first run, and
   # shipping one would freeze today's defaults into every download.
   #
-  # What these are missing: FFmpeg is not installed on the runners, so the movie
-  # decoder and the soundtrack override are their stubs -- no FMV, no music
-  # replacement. BUILD-INFO.txt in the archive says so.
+  # What these are missing: libusb on macOS, for the reason at the FFmpeg and
+  # libusb steps. BUILD-INFO.txt in the archive says so.
   package:
     needs: prepare
     runs-on: ${{ matrix.os }}
@@ -487,7 +484,8 @@ jobs:
             libxfixes-dev libxss-dev libxrender-dev libxtst-dev \
             libxkbcommon-dev libxkbcommon-x11-dev \
             libwayland-dev wayland-protocols libdecor-0-dev \
-            libasound2-dev libpulse-dev libudev-dev libdbus-1-dev libibus-1.0-dev
+            libasound2-dev libpulse-dev libudev-dev libdbus-1-dev libibus-1.0-dev \
+            libusb-1.0-0-dev
 
       # The configurator is drawn in wxWidgets, so the package needs one. A
       # package manager has it off Windows and this is the path a real machine
@@ -503,6 +501,63 @@ jobs:
           else
             brew install wxwidgets
           fi
+
+      # FFmpeg plays the movies and the soundtrack override. libusb is how SDL
+      # reads the Switch 2 controllers and the GameCube adapter.
+      #
+      # Windows takes both from vcpkg, as tools/pcbuild.bat does, and the build
+      # stages their DLLs beside bfbb.exe. FFmpeg from source is most of half an
+      # hour under vcpkg, so its binary cache is kept, keyed on the runner's
+      # vcpkg commit.
+      #
+      # Linux and macOS build a static FFmpeg (tools/ci/ffmpeg.sh), so the
+      # executable does not depend on one distribution's libavcodec soname.
+      # Linux's libusb is the distribution's, installed above. macOS has none:
+      # Homebrew's is a dylib in Homebrew's prefix, which a player's Mac does
+      # not have.
+      - name: vcpkg cache key
+        if: runner.os == 'Windows'
+        id: vcpkg
+        shell: bash
+        run: |
+          echo "commit=$(git -C "$VCPKG_INSTALLATION_ROOT" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "cache=$(cygpath -m "$RUNNER_TEMP")/vcpkg-cache" >> "$GITHUB_OUTPUT"
+
+      - name: vcpkg cache
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.vcpkg.outputs.cache }}
+          key: vcpkg-${{ matrix.msvc }}-windows-${{ steps.vcpkg.outputs.commit }}-ffmpeg-libusb
+
+      - name: FFmpeg and libusb (vcpkg)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ steps.vcpkg.outputs.cache }}
+        run: |
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+          root=$(cygpath -m "$VCPKG_INSTALLATION_ROOT")
+          "$root/vcpkg" install \
+            "ffmpeg[core,avcodec,avformat,swresample,swscale]:${{ matrix.msvc }}-windows" \
+            "libusb:${{ matrix.msvc }}-windows"
+          echo "BFBB_PREFIX=$root/installed/${{ matrix.msvc }}-windows" >> "$GITHUB_ENV"
+
+      - name: FFmpeg cache
+        if: runner.os != 'Windows'
+        id: ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg
+          key: ffmpeg-${{ matrix.name }}-${{ hashFiles('tools/ci/ffmpeg.sh') }}
+
+      - name: FFmpeg
+        if: runner.os != 'Windows'
+        run: |
+          if [ "${{ steps.ffmpeg.outputs.cache-hit }}" != true ]; then
+            sh tools/ci/ffmpeg.sh "$RUNNER_TEMP/ffmpeg"
+          fi
+          echo "BFBB_PREFIX=$RUNNER_TEMP/ffmpeg" >> "$GITHUB_ENV"
 
       # CMAKE_RUNTIME_OUTPUT_DIRECTORY is what makes this a package rather than
       # a file list: the button glyphs and the DLLs are staged beside bfbb by
@@ -527,7 +582,21 @@ jobs:
           ${{ matrix.backend != '' && format('-DBFBB_RENDER_BACKENDS={0}', matrix.backend) || '' }}
           ${{ matrix.bits }}
           -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=dist
+          -DCMAKE_PREFIX_PATH="$BFBB_PREFIX"
           ${{ runner.os == 'Windows' && '-DCMAKE_CXX_COMPILER=clang++' || '' }}
+
+      # Both are optional to CMakeLists.txt, which builds without them and says
+      # so in a STATUS line. Here they are not: a package without them is the
+      # regression this step is for.
+      - name: Check FFmpeg and libusb were found
+        shell: bash
+        run: |
+          grep -q '^FFMPEG_AVCODEC_LIBRARY:[A-Z]*=.*avcodec' build-pkg/CMakeCache.txt \
+            || { echo "FFmpeg was not found"; exit 1; }
+          if [ "$RUNNER_OS" != macOS ]; then
+            grep -q '^LibUSB_LIBRARY:[A-Z]*=.*usb' build-pkg/CMakeCache.txt \
+              || { echo "libusb was not found"; exit 1; }
+          fi
 
       - name: Build
         run: cmake --build build-pkg --target bfbb
@@ -567,9 +636,7 @@ jobs:
           auto takes the first of the ones listed above, and naming one is worth
           trying if the picture is wrong or the game will not start.
 
-          FFmpeg was not available on the build machine, so the movie decoder and
-          the soundtrack override are stubs in this build: cutscenes do not play
-          and [audio] soundtrack does nothing. Everything else is here.
+          ${{ runner.os == 'macOS' && 'Built without libusb: Switch 2 controllers and the GameCube adapter do not work.' || '' }}
           EOF
           ls -R dist
 
