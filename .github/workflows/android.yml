@@ -91,11 +91,14 @@ jobs:
           java-version: '17'
 
       # Pinned: the runner's own Gradle moved to 9, which cannot resolve the
-      # Android Gradle plugin 8.7.3's classpath.
+      # Android Gradle plugin 8.7.3's classpath. No wrapper validation: this
+      # build has no wrapper, and the only jar it would find is the one in
+      # SDL's android-project, which is not run.
       - name: Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+          validate-wrappers: false
 
       # The runner image ships an SDK and at least one NDK; android/app/build.
       # gradle pins the NDK version it wants and Gradle installs it if the
