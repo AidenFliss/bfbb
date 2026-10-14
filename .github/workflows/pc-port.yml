@@ -27,6 +27,12 @@ on:
   push:
   pull_request:
 
+# One run at a time per branch or tag. prepare deletes treedome's unfinished
+# drafts, and a second push running alongside would delete the first's.
+concurrency:
+  group: pc-port-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: windows-latest
@@ -330,14 +336,73 @@ jobs:
           SDL_AUDIODRIVER: dummy
         run: ./build-ci/pc_selftest
 
-  # Release builds, staged into a folder and uploaded.
+  # Opens a draft release for the package and android jobs to upload into, on a
+  # push to treedome or a `v*` tag. Anywhere else it does nothing, its output is
+  # empty, and the builds upload nowhere.
+  #
+  # treedome's draft is tagged latest-<sha> until the release job renames it to
+  # `latest`. A draft from a run that never got that far is deleted here.
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      stage: ${{ steps.draft.outputs.stage }}
+
+    steps:
+      - name: Open the draft
+        id: draft
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/treedome' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release list --limit 100 --json tagName,isDraft \
+            --jq '.[] | select(.isDraft and (.tagName | startswith("latest-"))) | .tagName' |
+            while read -r old; do gh release delete "$old" --yes; done
+
+          cat > notes.md <<'NOTES'
+          These builds contain no game data. You need the files from the **Xbox**
+          release; see the README for where to point the game at them.
+
+          | File | Platform |
+          | --- | --- |
+          | `bfbb-windows-x86.zip` | Windows. Direct3D 9, Direct3D 11 and OpenGL in one executable. Take this one. |
+          | `bfbb-windows-x86_64.zip` | Windows, 64-bit. |
+          | `bfbb-linux-x86_64.tar.gz` | Linux, OpenGL. |
+          | `bfbb-macos-x86_64.tar.gz` | macOS on Intel, OpenGL. Unsigned: run `xattr -dr com.apple.quarantine` on the folder first. |
+          | `bfbb-arm64-v8a.apk` | Android 7.0 or newer, arm64. Debug-signed. |
+
+          A platform whose build failed for this commit is missing from the files.
+
+          FFmpeg and libusb are not on the build machines. The desktop builds do
+          not play the intro movies, `[audio] soundtrack` does nothing, and Switch 2
+          controllers and the GameCube adapter do not work. Build it yourself for
+          those.
+          NOTES
+          echo "" >> notes.md
+          echo "Built from \`$GITHUB_REF_NAME\` at \`$GITHUB_SHA\`." >> notes.md
+
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            stage=$GITHUB_REF_NAME
+            gh release create "$stage" --draft --verify-tag \
+              --title "$stage" --notes-file notes.md
+          else
+            stage=latest-${GITHUB_SHA::12}
+            gh release create "$stage" --draft --target "$GITHUB_SHA" \
+              --title "Latest build" --notes-file notes.md
+          fi
+          echo "stage=$stage" >> "$GITHUB_OUTPUT"
+
+  # Release builds, staged into a folder and archived. On a release they are
+  # uploaded to the draft that prepare opened.
   #
   # Separate from the jobs above rather than an upload step bolted onto them.
   # Those build Debug, which is unoptimised and too slow to play; this is the
   # configuration someone would actually run, and it is the only one worth
   # downloading.
   #
-  # One artifact per HOST and word size, not one per backend. The Windows build
+  # One archive per HOST and word size, not one per backend. The Windows build
   # carries D3D9, D3D11 and GL3 together and video.backend in config.ini picks
   # between them, so a machine whose Direct3D driver misbehaves has the OpenGL
   # one in the same download.
@@ -347,7 +412,7 @@ jobs:
   # FFmpeg, drivers -- needs, and it carries a doubled game heap, so an
   # out-of-memory bug that the real console would hit can hide in it.
   #
-  # Each artifact is a folder to run the game out of: the executable, the
+  # Each archive is a folder to run the game out of: the executable, the
   # configurator, the button glyphs, and whatever DLLs the build staged beside
   # them. It does NOT contain the game's data. config.ini is not
   # in it either -- the game writes one with the defaults on first run, and
@@ -355,9 +420,13 @@ jobs:
   #
   # What these are missing: FFmpeg is not installed on the runners, so the movie
   # decoder and the soundtrack override are their stubs -- no FMV, no music
-  # replacement. BUILD-INFO.txt in the artifact says so.
+  # replacement. BUILD-INFO.txt in the archive says so.
   package:
+    needs: prepare
     runs-on: ${{ matrix.os }}
+    # To upload to the draft release.
+    permissions:
+      contents: write
     # Gating on Windows and reporting elsewhere, the same split the jobs above
     # use: the Windows Release builds are the ones people download. Both word
     # sizes gate, so that the 64-bit one is not left to rot green.
@@ -504,10 +573,78 @@ jobs:
           EOF
           ls -R dist
 
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: bfbb-${{ matrix.name }}
-          path: build-pkg/dist/
-          retention-days: 14
-          if-no-files-found: error
+      # An archive rather than the folder, so the executable bit survives on
+      # Linux and macOS. Made on every run, so a packaging break shows up
+      # before a release needs it.
+      - name: Archive
+        shell: bash
+        working-directory: build-pkg
+        run: |
+          mv dist "bfbb-${{ matrix.name }}"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a -tzip "bfbb-${{ matrix.name }}.zip" "bfbb-${{ matrix.name }}"
+          else
+            tar -czf "bfbb-${{ matrix.name }}.tar.gz" "bfbb-${{ matrix.name }}"
+          fi
+
+      # Straight to the draft release, never to Actions artifacts: those count
+      # against the account's storage quota, release assets do not.
+      - name: Upload to the release
+        if: needs.prepare.outputs.stage != ''
+        shell: bash
+        working-directory: build-pkg
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "${{ needs.prepare.outputs.stage }}" bfbb-${{ matrix.name }}.* --clobber
+
+  # The APK for the release. android.yml runs by itself for pull requests and
+  # for pushes that touch the Android side; this is the same job, called so
+  # that the release has an APK from the same commit.
+  android:
+    needs: prepare
+    if: needs.prepare.outputs.stage != ''
+    permissions:
+      contents: write
+    uses: ./.github/workflows/android.yml
+    with:
+      release: ${{ needs.prepare.outputs.stage }}
+
+  # Publishes the draft. A push to treedome replaces the `latest` prerelease,
+  # so the old one stays up until every build of the new one is in. A `v*` tag
+  # keeps its release.
+  #
+  # Runs without the APK if the Android build failed: a broken Android build
+  # should not hold back the desktop ones. A failed Windows package stops it,
+  # and the draft is deleted by the next run's prepare. The other desktop
+  # packages are continue-on-error and are left out when they fail.
+  release:
+    needs: [prepare, package, android]
+    if: >
+      !cancelled() && needs.prepare.outputs.stage != '' &&
+      needs.package.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STAGE: ${{ needs.prepare.outputs.stage }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            gh release edit "$STAGE" --draft=false
+            tag=$STAGE
+          else
+            tag=latest
+            # `|| true` for the first run, when there is no release to delete.
+            gh release delete "$tag" --yes --cleanup-tag || true
+            gh release edit "$STAGE" --tag "$tag" --target "$GITHUB_SHA" \
+              --draft=false --prerelease
+          fi
+          echo "::notice::Published: $(gh release view "$tag" --json url --jq .url)"
