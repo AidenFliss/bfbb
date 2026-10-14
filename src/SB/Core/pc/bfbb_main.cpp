@@ -33,6 +33,9 @@
 #else
 #include <pthread.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <ucontext.h>
+#include <dlfcn.h>
 
 // The POSIX arm walks the stack through the host seam rather than writing its
 // own. iHostPrintCallers is the same job -- "which code leads here", symbolised
@@ -380,6 +383,97 @@ namespace
 
     pthread_t sMainThread;
 
+    static volatile sig_atomic_t sReporting;
+
+#if defined(__linux__)
+    static const void* FatalPC(const ucontext_t* uc)
+    {
+#if defined(__x86_64__)
+        return (const void*)(uintptr_t)uc->uc_mcontext.gregs[REG_RIP];
+#elif defined(__i386__)
+        return (const void*)(uintptr_t)uc->uc_mcontext.gregs[REG_EIP];
+#elif defined(__aarch64__)
+        return (const void*)(uintptr_t)uc->uc_mcontext.pc;
+#elif defined(__arm__)
+        return (const void*)(uintptr_t)uc->uc_mcontext.arm_pc;
+#else
+        return NULL;
+#endif
+    }
+
+    static void PrintFaultPC(const void* pc)
+    {
+        Dl_info info;
+        memset(&info, 0, sizeof(info));
+
+        if (dladdr(pc, &info) != 0 && info.dli_fbase != NULL && info.dli_fname != NULL)
+        {
+            const char* slash = strrchr(info.dli_fname, '/');
+
+            printf("bfbb:   faulting PC %p  [%s+0x%lx]\n", pc,
+                   slash != NULL ? slash + 1 : info.dli_fname,
+                   (unsigned long)((uintptr_t)pc - (uintptr_t)info.dli_fbase));
+        }
+        else
+        {
+            printf("bfbb:   faulting PC %p\n", pc);
+        }
+    }
+
+    static void PrintRegisters(const ucontext_t* uc)
+    {
+#if defined(__x86_64__)
+        const greg_t* g = uc->uc_mcontext.gregs;
+
+        printf("bfbb:   rip %016llx  rsp %016llx  rbp %016llx  rflags %016llx\n",
+               (unsigned long long)g[REG_RIP], (unsigned long long)g[REG_RSP],
+               (unsigned long long)g[REG_RBP], (unsigned long long)g[REG_EFL]);
+        printf("bfbb:   rax %016llx  rbx %016llx  rcx %016llx  rdx %016llx\n",
+               (unsigned long long)g[REG_RAX], (unsigned long long)g[REG_RBX],
+               (unsigned long long)g[REG_RCX], (unsigned long long)g[REG_RDX]);
+        printf("bfbb:   rsi %016llx  rdi %016llx   r8 %016llx   r9 %016llx\n",
+               (unsigned long long)g[REG_RSI], (unsigned long long)g[REG_RDI],
+               (unsigned long long)g[REG_R8], (unsigned long long)g[REG_R9]);
+        printf("bfbb:   r10 %016llx  r11 %016llx  r12 %016llx  r13 %016llx\n",
+               (unsigned long long)g[REG_R10], (unsigned long long)g[REG_R11],
+               (unsigned long long)g[REG_R12], (unsigned long long)g[REG_R13]);
+        printf("bfbb:   r14 %016llx  r15 %016llx\n", (unsigned long long)g[REG_R14],
+               (unsigned long long)g[REG_R15]);
+#elif defined(__i386__)
+        const greg_t* g = uc->uc_mcontext.gregs;
+
+        printf("bfbb:   eip %08lx  esp %08lx  ebp %08lx  eflags %08lx\n",
+               (unsigned long)g[REG_EIP], (unsigned long)g[REG_ESP],
+               (unsigned long)g[REG_EBP], (unsigned long)g[REG_EFL]);
+        printf("bfbb:   eax %08lx  ebx %08lx  ecx %08lx  edx %08lx\n",
+               (unsigned long)g[REG_EAX], (unsigned long)g[REG_EBX],
+               (unsigned long)g[REG_ECX], (unsigned long)g[REG_EDX]);
+        printf("bfbb:   esi %08lx  edi %08lx\n", (unsigned long)g[REG_ESI],
+               (unsigned long)g[REG_EDI]);
+#elif defined(__aarch64__)
+        printf("bfbb:   pc  %016llx  sp  %016llx  pstate %016llx\n",
+               (unsigned long long)uc->uc_mcontext.pc, (unsigned long long)uc->uc_mcontext.sp,
+               (unsigned long long)uc->uc_mcontext.pstate);
+
+        for (int i = 0; i < 31; i += 4)
+        {
+            printf("bfbb:   x%-2d %016llx  x%-2d %016llx  x%-2d %016llx  x%-2d %016llx\n", i,
+                   (unsigned long long)uc->uc_mcontext.regs[i], i + 1,
+                   (unsigned long long)uc->uc_mcontext.regs[i + 1], i + 2,
+                   (unsigned long long)uc->uc_mcontext.regs[i + 2], i + 3,
+                   (unsigned long long)uc->uc_mcontext.regs[i + 3]);
+        }
+#elif defined(__arm__)
+        printf("bfbb:   pc  %08lx  sp  %08lx  lr  %08lx  cpsr %08lx\n",
+               (unsigned long)uc->uc_mcontext.arm_pc, (unsigned long)uc->uc_mcontext.arm_sp,
+               (unsigned long)uc->uc_mcontext.arm_lr, (unsigned long)uc->uc_mcontext.arm_cpsr);
+        printf("bfbb:   r0  %08lx  r1  %08lx  r2  %08lx  r3  %08lx\n",
+               (unsigned long)uc->uc_mcontext.arm_r0, (unsigned long)uc->uc_mcontext.arm_r1,
+               (unsigned long)uc->uc_mcontext.arm_r2, (unsigned long)uc->uc_mcontext.arm_r3);
+#endif
+    }
+#endif
+
     // Space for the fatal handler to run on, because the fault it most needs to
     // report is a STACK OVERFLOW and the thread's own stack is by then the
     // thing that ran out. SA_ONSTACK plus this is what Windows gets from a
@@ -391,8 +485,22 @@ namespace
     // formats.
     char sSignalStack[65536];
 
-    void FatalSignal(int sig, siginfo_t* info, void*)
+    void FatalSignal(int sig, siginfo_t* info, void* context)
     {
+        if (sReporting)
+        {
+            static const char repeated[] = "bfbb: a second fault while reporting the first\n";
+            ssize_t ignored = write(STDERR_FILENO, repeated, sizeof(repeated) - 1);
+            (void)ignored;
+            _exit(4);
+        }
+        sReporting = 1;
+
+        ucontext_t* uc = (ucontext_t*)context;
+#if !defined(__linux__)
+        (void)uc;
+#endif
+
         printf("\nbfbb: CRASH -- %s\n", strsignal(sig));
 
         // The address that was touched, which is usually the whole diagnosis:
@@ -402,6 +510,15 @@ namespace
         {
             printf("bfbb:   faulting address %p\n", info->si_addr);
         }
+
+#if defined(__linux__)
+        const void* pc = (uc != NULL) ? FatalPC(uc) : NULL;
+        if (pc != NULL)
+        {
+            PrintFaultPC(pc);
+            PrintRegisters(uc);
+        }
+#endif
 
         // Which thread. A crash on a worker and one on the game's own are
         // different bugs, and the stack alone does not always say which.

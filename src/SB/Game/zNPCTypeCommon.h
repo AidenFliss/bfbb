@@ -513,6 +513,9 @@ struct zNPCCommon : xNPCBasic //Size of zNPCCommon: 0x2A0
     {
         return TRUE;
     }
+    virtual void NPCClearTargetEnt(const xEnt* victim)
+    {
+    }
     virtual void Damage(en_NPC_DAMAGE_TYPE damtype, xBase* who, const xVec3* vec_hit);
     virtual S32 Respawn(const xVec3* pos, zMovePoint* mvptFirst, zMovePoint* mvptSpawnRef);
     virtual void DuploOwner(zNPCCommon* duper)

@@ -34,6 +34,7 @@ extern "C" int sprintf(char*, const char*, ...);
 #include "iFile.h"
 #include "zScene.h"
 #include "zGameState.h"
+#include "iImgui.h"
 // Only zMainMemCardSpaceQuery reaches for these, and its body is gated below.
 #ifdef GAMECUBE
 #include <dolphin/card.h>
@@ -935,6 +936,7 @@ void zMainReadINI()
 
         zMainParseINIGlobals(ini);
         zUI_ParseINI(ini);
+        iImguiINICaptureDefaults(ini);
         xIniDestroy(ini);
     }
 
@@ -975,6 +977,35 @@ void zMainReadINI()
     iTimeDiffSec(tim);
     iTimeGet();
 
+    RwFree(buf);
+}
+
+void zMainReloadINI()
+{
+    char* str;
+    void* buf;
+    U32 size;
+    xIniFile* ini;
+
+    buf = iFileLoad("SB.INI", NULL, &size);
+
+    if (buf == NULL)
+    {
+        return;
+    }
+
+    ini = xIniParse((char*)buf, size);
+
+    str = xIniGetString(ini, "PATH", NULL);
+
+    if (str)
+    {
+        iFileSetPath(str);
+    }
+
+    zMainParseINIGlobals(ini);
+    zUI_ParseINI(ini);
+    xIniDestroy(ini);
     RwFree(buf);
 }
 

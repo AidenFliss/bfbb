@@ -2,6 +2,7 @@
 
 #include <types.h>
 #include <string.h>
+#include <stdlib.h>
 #include <rwplcore.h>
 
 #include "iSystem.h"
@@ -13,6 +14,8 @@ xMemHeap_tag gxHeap[3];
 U32 gActiveHeap;
 void (*sMemBaseNotifyFunc)();
 typedef U32 xMemAddr;
+
+static void xMemOverflowFree(U32 heapID, S32 depth);
 
 void xMemDebug_SoakLog(const char*)
 {
@@ -36,6 +39,9 @@ void xMemInit()
 
 void xMemExit()
 {
+    xMemOverflowFree(0, -1);
+    xMemOverflowFree(1, -1);
+    xMemOverflowFree(2, -1);
     iMemExit();
 }
 
@@ -238,6 +244,105 @@ U32 xMemGetBlockInfo(xMemHeap_tag* heap, U32 size, S32 align, xMemBlkInfo_tag* i
     return total;
 }
 
+struct xMemOvfl
+{
+    void* mem;
+    U32 heapID;
+    S32 depth;
+    U32 size;
+    xMemOvfl* prev;
+};
+
+static xMemOvfl* s_ovfl;
+static U32 s_ovflCount;
+static U32 s_ovflBytes;
+static U32 s_ovflFreed;
+
+static void* xMemOverflowAlloc(U32 heapID, U32 size)
+{
+    xMemOvfl* rec = (xMemOvfl*)malloc(sizeof(xMemOvfl));
+    if (rec == NULL)
+    {
+        return NULL;
+    }
+
+    void* mem = malloc(size);
+    if (mem == NULL)
+    {
+        free(rec);
+        return NULL;
+    }
+
+    memset(mem, 0, size);
+    rec->mem = mem;
+    rec->heapID = heapID;
+    rec->depth = gxHeap[heapID].state_idx;
+    rec->size = size;
+    rec->prev = s_ovfl;
+    s_ovfl = rec;
+    s_ovflCount++;
+    s_ovflBytes += size;
+    return mem;
+}
+
+static void xMemOverflowFree(U32 heapID, S32 depth)
+{
+    xMemOvfl** link = &s_ovfl;
+
+    while (*link != NULL)
+    {
+        xMemOvfl* rec = *link;
+        if (rec->heapID == heapID && rec->depth > depth)
+        {
+            *link = rec->prev;
+            s_ovflCount--;
+            s_ovflBytes -= rec->size;
+            s_ovflFreed += rec->size;
+            free(rec->mem);
+            free(rec);
+        }
+        else
+        {
+            link = &rec->prev;
+        }
+    }
+}
+
+void xMemGetHeapStats(U32 heapID, U32* used, U32* wasted, U32* size)
+{
+    xMemHeap_tag* heap = &gxHeap[heapID];
+    xHeapState_tag* sp = &heap->state[heap->state_idx];
+
+    if (used != NULL)
+    {
+        *used = sp->used;
+    }
+    if (wasted != NULL)
+    {
+        *wasted = sp->wasted;
+    }
+    if (size != NULL)
+    {
+        *size = heap->size;
+    }
+}
+
+void xMemGetOverflowStats(U32* liveCount, U32* liveBytes, U32* totalFreed)
+{
+    if (liveCount != NULL)
+    {
+        *liveCount = s_ovflCount;
+    }
+    if (liveBytes != NULL)
+    {
+        *liveBytes = s_ovflBytes;
+    }
+    if (totalFreed != NULL)
+    {
+        *totalFreed = s_ovflFreed;
+    }
+}
+
 void* xMemGrowAlloc(U32 heapID, U32 size)
 {
     size = (S32)(UPtr)ROUND_UP_PTR(size, 4);
@@ -252,7 +357,7 @@ void* xMemGrowAlloc(U32 heapID, U32 size)
     newalignsize = hdr->size + size;
     if (sp->used + (newalignsize - oldalignsize) > heap->size)
     {
-        return NULL;
+        return xMemOverflowAlloc(heapID, size);
     }
 
     void* memptr;
@@ -306,7 +411,7 @@ void* xMemAlloc(U32 heapID, U32 size, S32 align)
 
     if (sp->used + total > heap->size)
     {
-        return NULL;
+        return xMemOverflowAlloc(heapID, size);
     }
 
     sp->curr = info.curr;
@@ -367,6 +472,7 @@ S32 xMemPopBase(U32 heapID, S32 depth)
     }
 
     heap->state_idx = depth;
+    xMemOverflowFree(heapID, depth);
     if (sMemBaseNotifyFunc != NULL)
     {
         sMemBaseNotifyFunc();

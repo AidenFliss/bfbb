@@ -17,21 +17,21 @@ struct xScene
 {
     U32 sceneID;
     U16 flags;
-    U16 num_ents;
-    U16 num_trigs;
-    U16 num_stats;
-    U16 num_dyns;
-    U16 num_npcs;
-    U16 num_act_ents;
-    U16 num_nact_ents;
+    U32 num_ents;
+    U32 num_trigs;
+    U32 num_stats;
+    U32 num_dyns;
+    U32 num_npcs;
+    U32 num_act_ents;
+    U32 num_nact_ents;
     F32 gravity;
     F32 drag;
     F32 friction;
-    U16 num_ents_allocd;
-    U16 num_trigs_allocd;
-    U16 num_stats_allocd;
-    U16 num_dyns_allocd;
-    U16 num_npcs_allocd;
+    U32 num_ents_allocd;
+    U32 num_trigs_allocd;
+    U32 num_stats_allocd;
+    U32 num_dyns_allocd;
+    U32 num_npcs_allocd;
     xEnt** trigs;
     xEnt** stats;
     xEnt** dyns;
@@ -64,7 +64,7 @@ struct xNearFloorPoly
 
 extern xScene* g_xSceneCur;
 
-void xSceneInit(xScene* sc, U16 num_trigs, U16 num_stats, U16 num_dyns, U16 num_npcs);
+void xSceneInit(xScene* sc, U32 num_trigs, U32 num_stats, U32 num_dyns, U32 num_npcs);
 void xSceneExit(xScene* sc);
 void xSceneSave(xScene* sc, xSerial* s);
 void xSceneLoad(xScene* sc, xSerial* s);

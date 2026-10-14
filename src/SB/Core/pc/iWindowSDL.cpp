@@ -565,9 +565,44 @@ S32 iWindowGetDisplaySize(S32* width, S32* height)
     return ok;
 }
 
+static U64 sPerfPresentNS;
+static U64 sPerfPaceNS;
+
+U64 iWindowGetTicksNS()
+{
+    return (U64)SDL_GetTicksNS();
+}
+
+void iWindowPerfNotePresent(U64 presentNS)
+{
+    sPerfPresentNS = presentNS;
+}
+
+void iWindowPerfNotePace(U64 paceNS)
+{
+    sPerfPaceNS = paceNS;
+}
+
+U64 iWindowPerfPresentNS()
+{
+    return sPerfPresentNS;
+}
+
+U64 iWindowPerfPaceNS()
+{
+    return sPerfPaceNS;
+}
+
 void iWindowPaceFrame()
 {
+    Uint64 paceStart = SDL_GetTicksNS();
+
     if (sFrameRate <= 0)
+    {
+        sPerfPaceNS = 0;
+        sPacerStarted = false;
+        return;
+    }
     {
         sPacerStarted = false;
         return;
@@ -591,6 +626,7 @@ void iWindowPaceFrame()
     if (sNextFrame <= now)
     {
         sNextFrame = now;
+        sPerfPaceNS = 0;
         return;
     }
 
@@ -599,6 +635,8 @@ void iWindowPaceFrame()
     // rate, which costs a frame every time rather than pacing one. The precise
     // one sleeps for all but the last fraction and spins out the rest.
     SDL_DelayPrecise(sNextFrame - now);
+
+    sPerfPaceNS = (U64)SDL_GetTicksNS() - paceStart;
 }
 
 S32 iWindowShouldClose()
@@ -765,6 +803,27 @@ void* iWindowNativeHandle()
     }
 #endif
     return (void*)sWindow;
+}
+
+// SDL only posts TEXT_INPUT events while text input is active on the window.
+// The port starts it only while an ImGui field has keyboard focus, so the
+// on-screen keyboard (where a platform has one) stays away unless a field is
+// being typed into. Under D3D sWindow is still the SDL_Window* the port made;
+// iWindowNativeHandle returns the HWND there, which is not what SDL wants.
+void iWindowStartTextInput()
+{
+    if (sWindow != NULL)
+    {
+        SDL_StartTextInput(sWindow);
+    }
+}
+
+void iWindowStopTextInput()
+{
+    if (sWindow != NULL)
+    {
+        SDL_StopTextInput(sWindow);
+    }
 }
 
 const char* iWindowBackendName()

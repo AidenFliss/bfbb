@@ -720,7 +720,7 @@ bool iSndIsPlaying(U32 assetID)
     return true;
 }
 
-bool iSndIsPlaying(U32 assetID, U32 parid)
+bool iSndIsPlaying(U32 assetID, UPtr parid)
 {
     for (U32 i = 0; i < 0x40; i++)
     {

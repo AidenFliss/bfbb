@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "zCamera.h"
+#include "zDbgRender.h"
 #include "zEnt.h"
 #include "zEntButton.h"
 #include "zEntCruiseBubble.h"
@@ -3321,6 +3322,7 @@ namespace cruise_bubble
             xSphere o;
             o.center = mat->pos;
             o.r = current_tweak->missle.hit_dist;
+            zDbgAttackRecord(&mat->pos, o.r);
             notify_triggers(*globals.sceneCur, o, mat->at);
 
             return STATE_MISSLE_FLY;
@@ -3817,6 +3819,7 @@ namespace cruise_bubble
             {
                 F32 t = this->hit_time / current_tweak->missle.explode.hit_duration;
                 this->apply_damage(t * current_tweak->missle.explode.hit_radius);
+                zDbgAttackRecord(&shared.hit_loc, this->get_radius());
             }
 
             return STATE_MISSLE_EXPLODE;

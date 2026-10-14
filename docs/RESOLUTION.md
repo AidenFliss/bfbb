@@ -1,7 +1,7 @@
 # Rendering above 640x480
 
 The port renders at `config.ini`'s `[video] width` and `height`, and opens its
-window at that size. The default is 640x480, retail's framebuffer.
+window at that size. The default is 1280x960, twice retail's framebuffer.
 
     [video]
     width = 1280

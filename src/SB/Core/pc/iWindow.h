@@ -125,6 +125,28 @@ S32 iWindowGetDisplayRefreshRate();
 void iWindowSetVSync(S32 on);
 S32 iWindowGetVSync();
 
+// Monotonic nanoseconds, for the debug perf window. SDL_GetTicksNS under SDL;
+// clock_gettime(CLOCK_MONOTONIC) where there is no window at all.
+U64 iWindowGetTicksNS();
+
+// How long the last present and the last frame-pacer sleep each took, in
+// nanoseconds. Present is measured around showRaster in RwCameraShowRaster and
+// so includes the GPU drain and the vsync wait; the pacer is measured inside
+// iWindowPaceFrame and is pure sleep. The perf window subtracts both from the
+// wall-clock frame time to get busy time.
+void iWindowPerfNotePresent(U64 presentNS);
+void iWindowPerfNotePace(U64 paceNS);
+U64 iWindowPerfPresentNS();
+U64 iWindowPerfPaceNS();
+
+// Start/stop keyboard text input on the window. SDL only posts TEXT_INPUT
+// events (the characters themselves, for ImGui's fields) while text input is
+// active; key events alone carry no character data. The port turns this on
+// only while an ImGui field has keyboard focus, so the on-screen keyboard
+// (where a platform has one) stays away unless a field is being typed into.
+void iWindowStartTextInput();
+void iWindowStopTextInput();
+
 // TRUE once the user has asked to close the window.
 //
 // Read at the frame boundary, in RwCameraShowRaster, alongside iWindowPump --

@@ -1427,6 +1427,16 @@ S32 LOD_r_ADBG(st_HIPLOADDATA* pkg, st_PACKER_READ_DATA* pr, st_PACKER_ATOC_NODE
     assnode->assalign = ival;
 
     g_hiprf->readString(pkg, tmpbuf);
+
+    // The asset's directory name: string 1 of ADBG. Retail GC zeroed it in
+    // the files and stubbed Name; the Xbox HIPs keep it.
+    size_t namelen = strlen(tmpbuf);
+    if (namelen > sizeof(assnode->basename) - 1)
+    {
+        namelen = sizeof(assnode->basename) - 1;
+    }
+    memcpy(assnode->basename, tmpbuf, namelen);
+
     tmpbuf[0] = 0;
 
     g_hiprf->readString(pkg, tmpbuf);
@@ -1788,5 +1798,10 @@ void PKR_pop_memmark()
 
 char* st_PACKER_ATOC_NODE::Name() const
 {
+    if (basename[0] != '\0')
+    {
+        return (char*)basename;
+    }
+
     return "<unknown>";
 }

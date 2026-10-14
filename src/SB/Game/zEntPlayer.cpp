@@ -15,8 +15,12 @@
 #include "iMath.h"
 #include "iSnd.h"
 #include "iTRC.h"
+#ifdef PLATFORM_PC
+#include "iCheats.h"
+#endif
 
 #include "xDebug.h"
+#include "zDbgRender.h"
 #include "xDraw.h"
 #include "xEnt.h"
 #include "xEntBoulder.h"
@@ -39,6 +43,7 @@
 
 #include "zBase.h"
 #include "zCamera.h"
+#include "zDbgRender.h"
 #include "zEGenerator.h"
 #include "zEntButton.h"
 #include "zEntCruiseBubble.h"
@@ -166,6 +171,12 @@ xEntBoulder* boulderVehicle;
 static F32 bvTimeToIdle;
 static S32 boulderRollShouldEnd;
 static S32 boulderRollShouldStart;
+
+xEntBoulder* zEntPlayer_GetBoulderVehicle()
+{
+    return boulderVehicle;
+}
+
 static zParEmitter* sEmitSpinBubbles;
 static zParEmitter* sEmitSundae;
 static zParEmitter* sEmitStankBreath;
@@ -4235,6 +4246,11 @@ static S32 MeleeAttackBoundCollide(xEnt* ent, zScene* zsc, xBound* meleeB)
     cbdata.hitsomething = 0;
     xVec3Copy(&pos, xBoundCenter(meleeB));
 
+    if (meleeB->type == XBOUND_TYPE_SPHERE)
+    {
+        zDbgAttackRecord(&meleeB->sph.center, meleeB->sph.r);
+    }
+
     xGridCheckPosition(&colls_grid, &pos, &meleeB->qcd, CheckObjectAgainstMeleeBound, &cbdata);
     xGridCheckPosition(&colls_oso_grid, &pos, &meleeB->qcd, CheckObjectAgainstMeleeBound, &cbdata);
     xGridCheckPosition(&npcs_grid, &pos, &meleeB->qcd, CheckObjectAgainstMeleeBound, &cbdata);
@@ -6759,6 +6775,8 @@ void zEntPlayer_PredictPos(xVec3* pos, F32 timeIntoFuture, F32 leadFactor, S32 u
             xVec3AddScaled(pos, &g->PredictCurrDir, (timeIntoFuture * useVel));
         }
     }
+
+    zDbgPredictRecord(pos);
 }
 
 static S32 zEntPlayerKnockToSafety(xEnt* ent)
@@ -8293,6 +8311,11 @@ catchtunnel_done:
 
     if (strcmp(astate->Name, "BbashAttack01") == 0 || strcmp(astate->Name, "BbashStart01") == 0)
     {
+        if (ent->bound.type == XBOUND_TYPE_SPHERE)
+        {
+            zDbgAttackRecord(&ent->bound.sph.center, ent->bound.sph.r + 0.3f);
+        }
+
         xCollis* ceil = &ent->collis->colls[1];
         xEnt* destructent = (xEnt*)ent->collis->colls[1].optr;
         U8 destroyed = (destructent == NULL);
@@ -8371,6 +8394,11 @@ catchtunnel_done:
         strcmp(astate->Name, "BbounceStart01") == 0 || strcmp(astate->Name, "StunJump") == 0 ||
         strcmp(astate->Name, "StunFall") == 0 || strcmp(astate->Name, "StunLand") == 0)
     {
+        if (ent->bound.type == XBOUND_TYPE_SPHERE)
+        {
+            zDbgAttackRecord(&ent->bound.sph.center, ent->bound.sph.r + 0.3f);
+        }
+
         xCollis* floor = &ent->collis->colls[0];
         xEnt* destructent = (xEnt*)ent->collis->colls[0].optr;
         U8 destroyed = (destructent == NULL);
@@ -9975,6 +10003,81 @@ static void zEntPlayerCheckShoePop()
     }
 }
 
+static void zEntPlayer_DebugDrawArrows(zEnt* ent)
+{
+    const xVec3& p = *(const xVec3*)&ent->model->Mat->pos;
+
+    xVec3 vel = { 0.0f, 0.0f, 0.0f };
+
+    if (ent->frame)
+    {
+        vel = ent->frame->vel;
+    }
+
+    xVec3 velTip = { p.x + vel.x, p.y + vel.y, p.z + vel.z };
+    zDbgArrow(&p, &velTip, 0.06f, 0, 255, 0, 255);
+
+    if (globals.pad0 != NULL)
+    {
+        xVec2 defl;
+        getPadDefl(&globals.pad0->analog1, &defl);
+
+        xVec3 stickDir = { 0.0f, 0.0f, 0.0f };
+        xVec3 camRight = globals.camera.mat.right;
+        xVec3 camAt = globals.camera.mat.at;
+
+        camRight.y = 0.0f;
+        camAt.y = 0.0f;
+
+        if (camRight.length() > 0.0001f)
+        {
+            camRight = camRight.normal();
+        }
+
+        if (camAt.length() > 0.0001f)
+        {
+            camAt = camAt.normal();
+        }
+
+        stickDir = camRight * (-defl.x) + camAt * (-defl.y);
+
+        if (stickDir.length() > 0.001f)
+        {
+            xVec3 stickTip = { p.x + stickDir.x, p.y + stickDir.y + 0.05f, p.z + stickDir.z };
+            zDbgArrow(&p, &stickTip, 0.05f, 255, 255, 0, 255);
+        }
+    }
+}
+
+void zEntPlayer_DebugRender(zEnt* ent)
+{
+    if (!gDbgRender.on || !gDbgRender.playerarrow)
+    {
+        return;
+    }
+
+    if (ent->model == NULL)
+    {
+        return;
+    }
+
+    RxRenderStateVector rs;
+    RxRenderStateVectorLoadDriverState(&rs);
+
+    RwCullMode cull;
+    RwRenderStateGet(rwRENDERSTATECULLMODE, &cull);
+
+    zEntPlayer_DebugDrawArrows(ent);
+
+    RwRenderStateSet(rwRENDERSTATETEXTURERASTER, rs.TextureRaster);
+    RwRenderStateSet(rwRENDERSTATEZTESTENABLE, (void*)(UPtr)((rs.Flags >> 1) & 1));
+    RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)(UPtr)((rs.Flags >> 2) & 1));
+    RwRenderStateSet(rwRENDERSTATEVERTEXALPHAENABLE, (void*)(UPtr)((rs.Flags >> 3) & 1));
+    RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rs.SrcBlend);
+    RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rs.DestBlend);
+    RwRenderStateSet(rwRENDERSTATECULLMODE, (void*)cull);
+}
+
 void zEntPlayer_Render(zEnt* ent)
 {
     if (bungee_state::render())
@@ -10188,6 +10291,8 @@ void zEntPlayer_Render(zEnt* ent)
     {
         zEntPlayer_BubbleBowlLaneRender(ent);
     }
+
+    zEntPlayer_DebugRender(ent);
 }
 
 static void dampen_velocity(xVec3& v1, const xVec3& v2, F32 f);
@@ -13713,6 +13818,20 @@ static void PlayerCollsSelectDepen(xEnt* ent, xScene* sc, F32 dt)
 
 void zEntPlayerCollide(xEnt* ent, xScene* sc, F32 dt)
 {
+#ifdef PLATFORM_PC
+    if (iCheatIsNoclip())
+    {
+        // Noclip: refresh the bound and reset the collision record exactly
+        // the way xEntBeginCollide does, then hit nothing -- ENV (the JSP/
+        // BSP world), NPCs, statics and dynamics all stay clear. Callers
+        // read ent->collis right after (stuck detection, boulder forces,
+        // critter contact), so leaving the last solid frame in place would
+        // fire them.
+        xEntBeginCollide(ent, sc, dt);
+        return;
+    }
+#endif
+
     cchkButtbounce =
         globals.player.Health && (ent->model->Anim->Single->State->UserFlags & 0x1e) == 0xe;
 
@@ -13758,6 +13877,13 @@ void zEntPlayerCollide(xEnt* ent, xScene* sc, F32 dt)
 
 void zEntPlayerCollTrigger(xEnt* ent, xScene* sc)
 {
+#ifdef PLATFORM_PC
+    if (iCheatIsNoclip())
+    {
+        return;
+    }
+#endif
+
     U32 i;
     U32 inside;
     zEntTrigger* trig;

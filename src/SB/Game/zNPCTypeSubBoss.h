@@ -16,6 +16,7 @@ struct zNPCSubBoss : zNPCCommon //Size of zNPCSubBoss: 0x2B4
     virtual U8 ColChkByFlags() const;
     virtual U8 ColPenByFlags() const;
     virtual U8 PhysicsFlags() const;
+    virtual void NPCClearTargetEnt(const xEnt* victim);
 };
 
 void zNPCSubBoss_ScenePrepare();

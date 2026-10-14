@@ -8,6 +8,10 @@
 #include "iMath.h"
 #include "iSystem.h"
 
+#ifdef PLATFORM_PC
+#include "iImgui.h"
+#endif
+
 #include "zGlobals.h"
 
 #include <string.h>
@@ -117,6 +121,10 @@ void iCameraBegin(RwCamera* cam, S32 clear)
 void iCameraEnd(RwCamera* cam)
 {
     iScrFxCameraEndScene(cam);
+#ifdef PLATFORM_PC
+    iImguiNewFrame();
+    iImguiRender();
+#endif
     RwCameraEndUpdate(cam);
     iScrFxPostCameraEnd(cam);
 }

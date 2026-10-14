@@ -266,6 +266,14 @@ void zNPCBoss::ThanksImDone()
 {
 }
 
+void zNPCBoss::NPCClearTargetEnt(const xEnt* victim)
+{
+    if (tgt_cur.ent_target == victim)
+    {
+        tgt_cur.TargetClear();
+    }
+}
+
 zNPCB_SB2::zNPCB_SB2(S32 myType) : zNPCBoss(myType)
 {
 }

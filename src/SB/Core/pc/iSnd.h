@@ -68,7 +68,7 @@ void iSndSetEnvironmentalEffect(isound_effect);
 void iSndInitSceneLoaded();
 
 bool iSndIsPlaying(U32 assetID);
-bool iSndIsPlaying(U32 assetID, U32 parid);
+bool iSndIsPlaying(U32 assetID, UPtr parid);
 bool iSndIsPlayingByHandle(U32 handle);
 iSndFileInfo* iSndLookup(U32 id);
 

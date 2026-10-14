@@ -5,6 +5,7 @@
 #include "zEntPlayer.h"
 #include "zGameExtras.h"
 #include "zGlobals.h"
+#include "zGameState.h"
 
 namespace
 {
@@ -17,6 +18,13 @@ namespace
     S32 sUnlimitedShinies = FALSE;
     S32 sUnlimitedSpatulas = FALSE;
     S32 sUnlimitedHealth = FALSE;
+    S32 sForceFlyMode = FALSE;
+    S32 sNoclip = FALSE;
+    S32 sNoclipSaved = FALSE;
+    U8 sSavedCollType = 0;
+    U8 sSavedChkBy = 0;
+    S32 sGameModeRequest = -1;
+    S32 sPickupCollectDisabled = FALSE;
     S32 sGameFlags = 0;
 }
 
@@ -62,6 +70,49 @@ void iCheatSetUnlimitedHealth(S32 on)
     sUnlimitedHealth = on;
 }
 
+void iCheatSetFlyMode(S32 on)
+{
+    globals.player.cheat_mode = on ? TRUE : FALSE;
+}
+
+void iCheatSetForceFlyMode(S32 on)
+{
+    sForceFlyMode = on;
+}
+
+S32 iCheatIsForceFlyMode()
+{
+    return sForceFlyMode;
+}
+
+void iCheatSetNoclip(S32 on)
+{
+    sNoclip = on;
+}
+
+S32 iCheatIsNoclip()
+{
+    return sNoclip;
+}
+
+void iCheatRequestGameMode(S32 mode)
+{
+    if (mode >= 0 && mode < (S32)eGameMode_Count)
+    {
+        sGameModeRequest = mode;
+    }
+}
+
+void iCheatSetPickupCollectDisabled(S32 on)
+{
+    sPickupCollectDisabled = on;
+}
+
+S32 iCheatIsPickupCollectDisabled()
+{
+    return sPickupCollectDisabled;
+}
+
 void iCheatsUpdate()
 {
     if (sAllWarps)
@@ -87,6 +138,36 @@ void iCheatsUpdate()
     if (sUnlimitedHealth)
     {
         globals.player.g.TakeDamage = FALSE;
+    }
+    if (sForceFlyMode)
+    {
+        globals.player.cheat_mode = TRUE;
+    }
+    if (!globals.player.cheat_mode)
+    {
+        sNoclip = FALSE;
+    }
+    if (sNoclip && globals.player.cheat_mode)
+    {
+        if (!sNoclipSaved)
+        {
+            sSavedCollType = globals.player.ent.collType;
+            sSavedChkBy = globals.player.ent.chkby;
+            sNoclipSaved = TRUE;
+        }
+        globals.player.ent.collType = XENT_COLLTYPE_NONE;
+        globals.player.ent.chkby = 0;
+    }
+    else if (sNoclipSaved)
+    {
+        globals.player.ent.collType = sSavedCollType;
+        globals.player.ent.chkby = sSavedChkBy;
+        sNoclipSaved = FALSE;
+    }
+    if (sGameModeRequest >= 0)
+    {
+        zGameModeSwitch((eGameMode)sGameModeRequest);
+        sGameModeRequest = -1;
     }
     if (sGameFlags != 0)
     {

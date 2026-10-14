@@ -7,6 +7,7 @@
 #include "iFixes.h"
 #include "iFont.h"
 #include "iHost.h"
+#include "iImgui.h"
 #include "iPad.h"
 #include "iPadHost.h"
 #include "iPadStick.h"
@@ -388,6 +389,7 @@ static S32 RenderWareInit()
         RwEngineTerm();
         return TRUE;
     }
+    iImguiInit();
     RwTextureSetReadCallBack(TextureRead);
     RwRenderStateSet(rwRENDERSTATECULLMODE, (void*)rwCULLMODECULLBACK);
     xShadowInit();

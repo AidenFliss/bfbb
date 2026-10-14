@@ -76,8 +76,8 @@ const iConfigSetting kConfigSettings[] = {
 #endif
       "Render size, HUD and draw distance: vanilla, modern, or custom (the lines below).",
       ICONFIG_ENUM, "custom|vanilla|modern", kNone, kNone },
-    { "video", "width", "640", "Render width in pixels.", ICONFIG_INT, NULL, 320.0f, 15360.0f },
-    { "video", "height", "480",
+    { "video", "width", "1280", "Render width in pixels.", ICONFIG_INT, NULL, 320.0f, 15360.0f },
+    { "video", "height", "960",
       "Render height in pixels. Wider than 4:3 shows more at the sides instead of\n"
       "; stretching.",
       ICONFIG_INT, NULL, 240.0f, 8640.0f },
@@ -412,6 +412,12 @@ const iConfigSetting kConfigSettings[] = {
       "How sharply shading breaks at corners, against the smoothed normals outlines\n"
       "; need. 0: fully smoothed.",
       ICONFIG_FLOAT, NULL, 0.0f, 1.0f, "toon" },
+    { "memory", "heap_mb", "512",
+      "Size of the game's main heap, in MB. The arena is reserved, not committed,\n"
+      "; so a larger value costs nothing until the game allocates into it. Raise it\n"
+      "; if mass-spawning NPCs or a heavy mod runs the heap out; lower it toward 64\n"
+      "; on a memory-tight machine. Clamped to 16..1024.",
+      ICONFIG_INT, NULL, 16.0f, 1024.0f },
 };
 
 const S32 kConfigSettingCount = (S32)(sizeof(kConfigSettings) / sizeof(kConfigSettings[0]));

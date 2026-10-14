@@ -659,7 +659,6 @@ void zNPCBPatrick::SelfSetup()
     psy->SetSafety(NPC_GOAL_BOSSPATIDLE);
 }
 
-WEAK void xDebugAddTweak(const char*, U32*, U32, U32, const tweak_callback*, void*, U32);
 void xDebugAddTweak(const char*, float*, float, float, const tweak_callback*, void*, unsigned int);
 
 void zNPCBPatrick::Reset()
@@ -4236,10 +4235,6 @@ S32 zNPCGoalBossPatFudge::Process(en_trantype* trantype, F32 dt, void* ctxt, xSc
     pat->model->Anim->Single->Blend->BilinearLerp[0] = this->lerp;
 
     return xGoal::Process(trantype, dt, ctxt, scene);
-}
-
-WEAK void xDebugAddTweak(const char*, U32*, U32, U32, const tweak_callback*, void*, U32)
-{
 }
 
 S32 BoundEventCB(xBase*, xBase*, U32, const F32*, xBase*)

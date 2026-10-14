@@ -307,7 +307,7 @@ void zEntUpdate(zEnt* ent, zScene* scene, F32 elapsedSec)
 void zEntEventAll(xBase* from, U32 fromEvent, U32 toEvent, F32* toParam)
 {
     zScene* s = globals.sceneCur;
-    for (U16 i = 0; i < s->num_base; i++)
+    for (U32 i = 0; i < s->num_base; i++)
     {
         zEntEvent(from, fromEvent, s->base[i], toEvent, toParam, NULL, 0);
     }
@@ -321,7 +321,7 @@ void zEntEventAllOfType(xBase* from, U32 fromEvent, U32 toEvent, F32* toParam, U
         return;
     }
 
-    for (U16 i = 0; i < s->num_base; i++)
+    for (U32 i = 0; i < s->num_base; i++)
     {
         xBase* base = s->base[i];
         if (type == base->baseType)

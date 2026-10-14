@@ -160,7 +160,7 @@ void zUIMgr::Update(zScene* s, F32 dt)
 {
     for (U32 i = 0; i < m_updateMax; i++)
     {
-        if (xBaseIsEnabled(m_update[i]))
+        if (m_update[i] != NULL && xBaseIsEnabled(m_update[i]))
         {
             m_update[i]->update(m_update[i], s, dt);
         }
@@ -210,26 +210,37 @@ void zUIMgr::Remove(_zUI* ui)
 
 void zUIMgr::Remove_PreUpdate(_zUI* ui)
 {
-    if (ui->preUpdateIndex < m_preUpdateStart)
+    U32 idx = ui->preUpdateIndex;
+
+    // The claimed index must be in range and still hold this UI. A stale index
+    // (already removed, or never added) would otherwise move a boundary without
+    // a matching add, letting the boundaries walk out of the array until an Add
+    // writes out of bounds and corrupts neighbouring heap.
+    if (idx >= m_preUpdateMax || m_preUpdate[idx] != ui)
     {
-        if (ui->preUpdateIndex != m_preUpdateStart - 1)
+        return;
+    }
+
+    if ((S32)idx < m_preUpdateStart)
+    {
+        if ((S32)idx != m_preUpdateStart - 1)
         {
             _zUI* r5 = m_preUpdate[m_preUpdateStart - 1];
 
-            m_preUpdate[ui->preUpdateIndex] = r5;
-            r5->preUpdateIndex = ui->preUpdateIndex;
+            m_preUpdate[idx] = r5;
+            r5->preUpdateIndex = (U16)idx;
         }
 
         m_preUpdateStart--;
     }
     else
     {
-        if (ui->preUpdateIndex != m_preUpdateEnd + 1)
+        if ((S32)idx != m_preUpdateEnd + 1 && m_preUpdateEnd + 1 < (S32)m_preUpdateMax)
         {
             _zUI* r5 = m_preUpdate[m_preUpdateEnd + 1];
 
-            m_preUpdate[ui->preUpdateIndex] = r5;
-            r5->preUpdateIndex = ui->preUpdateIndex;
+            m_preUpdate[idx] = r5;
+            r5->preUpdateIndex = (U16)idx;
         }
 
         m_preUpdateEnd++;
@@ -238,26 +249,35 @@ void zUIMgr::Remove_PreUpdate(_zUI* ui)
 
 void zUIMgr::Remove_Update(_zUI* ui)
 {
-    if (ui->updateIndex < m_updateStart)
+    U32 idx = ui->updateIndex;
+
+    // Same guard as Remove_PreUpdate: only move a boundary when the UI is
+    // genuinely present at its claimed slot.
+    if (idx >= m_updateMax || m_update[idx] != ui)
     {
-        if (ui->updateIndex != m_updateStart - 1)
+        return;
+    }
+
+    if ((S32)idx < m_updateStart)
+    {
+        if ((S32)idx != m_updateStart - 1)
         {
             _zUI* r5 = m_update[m_updateStart - 1];
 
-            m_update[ui->updateIndex] = r5;
-            r5->updateIndex = ui->updateIndex;
+            m_update[idx] = r5;
+            r5->updateIndex = (U16)idx;
         }
 
         m_updateStart--;
     }
     else
     {
-        if (ui->updateIndex != m_updateEnd + 1)
+        if ((S32)idx != m_updateEnd + 1 && m_updateEnd + 1 < (S32)m_updateMax)
         {
             _zUI* r5 = m_update[m_updateEnd + 1];
 
-            m_update[ui->updateIndex] = r5;
-            r5->updateIndex = ui->updateIndex;
+            m_update[idx] = r5;
+            r5->updateIndex = (U16)idx;
         }
 
         m_updateEnd++;
@@ -272,28 +292,41 @@ void zUIMgr::Add(_zUI* ui)
 
 void zUIMgr::Add_PreUpdate(_zUI* ui)
 {
+    // Free gap is [m_preUpdateStart, m_preUpdateEnd]; if it is empty the queue
+    // is full and there is no slot to write, so bail rather than write OOB.
+    if (m_preUpdateStart > m_preUpdateEnd)
+    {
+        return;
+    }
+
     if (ui->uiFlags & 0x8 && (ui->uiFlags & 0x2 || ui->uiFlags & 0x1))
     {
-        ui->preUpdateIndex = m_preUpdateStart;
+        ui->preUpdateIndex = (U16)m_preUpdateStart;
         m_preUpdate[m_preUpdateStart++] = ui;
     }
     else
     {
-        ui->preUpdateIndex = m_preUpdateEnd;
+        ui->preUpdateIndex = (U16)m_preUpdateEnd;
         m_preUpdate[m_preUpdateEnd--] = ui;
     }
 }
 
 void zUIMgr::Add_Update(_zUI* ui)
 {
+    // Same free-gap guard as Add_PreUpdate.
+    if (m_updateStart > m_updateEnd)
+    {
+        return;
+    }
+
     if (xEntIsVisible(ui))
     {
-        ui->updateIndex = m_updateStart;
+        ui->updateIndex = (U16)m_updateStart;
         m_update[m_updateStart++] = ui;
     }
     else
     {
-        ui->updateIndex = m_updateEnd;
+        ui->updateIndex = (U16)m_updateEnd;
         m_update[m_updateEnd--] = ui;
     }
 }

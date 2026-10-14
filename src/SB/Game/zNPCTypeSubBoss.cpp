@@ -145,3 +145,11 @@ U8 zNPCSubBoss::PhysicsFlags() const
 {
     return 0x3;
 }
+
+void zNPCSubBoss::NPCClearTargetEnt(const xEnt* victim)
+{
+    if (tgt_cur.ent_target == victim)
+    {
+        tgt_cur.TargetClear();
+    }
+}

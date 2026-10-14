@@ -414,7 +414,7 @@ bool iSndIsPlaying(U32 assetID)
     return false;
 }
 
-bool iSndIsPlaying(U32 assetID, U32 parid)
+bool iSndIsPlaying(U32 assetID, UPtr parid)
 {
     if (assetID == 0)
     {

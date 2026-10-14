@@ -61,7 +61,7 @@ U32 zCameraFlyProcessStopEvent()
         zMusicSetVolume(1.0f, 2.0f);
     }
 
-    for (U16 i = 0; i < s->num_base; i++)
+    for (U32 i = 0; i < s->num_base; i++)
     {
         xBase* entry = s->base[i];
         if (entry->baseType == eBaseTypeCameraFly)

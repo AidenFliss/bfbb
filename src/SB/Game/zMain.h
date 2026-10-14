@@ -29,6 +29,7 @@ static void zMainMemLvlChkCB();
 void zMainShowProgressBar();
 static void zMainLoop();
 static void zMainReadINI();
+void zMainReloadINI();
 void zMainFirstScreen(int);
 static void zMainLoadFontHIP();
 

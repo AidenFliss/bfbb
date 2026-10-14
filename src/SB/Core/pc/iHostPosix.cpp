@@ -622,6 +622,19 @@ static void iPrintFrame(S32 depth, char* text)
 {
     char* name = NULL;
     char* tail = NULL;
+    char* raw = NULL;
+
+    char* bracket = strstr(text, " [");
+    if (bracket != NULL)
+    {
+        char* close = strchr(bracket + 2, ']');
+        if (close != NULL)
+        {
+            *close = '\0';
+            raw = bracket + 2;
+        }
+        *bracket = '\0';
+    }
 
     char* open = strchr(text, '(');
     if (open != NULL)
@@ -633,6 +646,12 @@ static void iPrintFrame(S32 depth, char* text)
             *plus = '\0';
             name = open + 1;
             tail = plus + 1;
+
+            char* paren = strchr(tail, ')');
+            if (paren != NULL)
+            {
+                *paren = '\0';
+            }
         }
     }
     else
@@ -661,15 +680,47 @@ static void iPrintFrame(S32 depth, char* text)
 
     if (name == NULL)
     {
-        printf("bfbb:   #%-2d %s\n", depth, text);
+        if (raw != NULL)
+        {
+            printf("bfbb:   #%-2d %s  %s\n", depth, raw, text);
+        }
+        else
+        {
+            printf("bfbb:   #%-2d %s\n", depth, text);
+        }
         return;
     }
 
     int status = 0;
     char* pretty = abi::__cxa_demangle(name, NULL, NULL, &status);
 
-    printf("bfbb:   #%-2d %s  %s\n", depth, status == 0 && pretty != NULL ? pretty : name,
-           tail != NULL ? tail : "");
+    const char* label = (status == 0 && pretty != NULL) ? pretty : name;
+    const char* offset = tail;
+
+    while (offset != NULL && (*offset == '+' || *offset == ' '))
+    {
+        offset++;
+    }
+
+    if (offset != NULL && *offset != '\0')
+    {
+        if (raw != NULL)
+        {
+            printf("bfbb:   #%-2d %s  %s+%s\n", depth, raw, label, offset);
+        }
+        else
+        {
+            printf("bfbb:   #%-2d %s+%s\n", depth, label, offset);
+        }
+    }
+    else if (raw != NULL)
+    {
+        printf("bfbb:   #%-2d %s  %s\n", depth, raw, label);
+    }
+    else
+    {
+        printf("bfbb:   #%-2d %s\n", depth, label);
+    }
 
     free(pretty);
 }

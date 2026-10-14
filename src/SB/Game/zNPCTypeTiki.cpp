@@ -1,5 +1,8 @@
 #include "iAnim.h"
 #include "iCollide.h"
+#ifdef PLATFORM_PC
+#include "iCheats.h"
+#endif
 
 #include "xDebug.h"
 #include "xScrFx.h"
@@ -1434,6 +1437,16 @@ static S32 quietIdleCB(xGoal* rawgoal, void*, en_trantype* trantype, F32 dt, voi
     xVec3Sub(&tmp, (xVec3*)&tiki->model->Mat->pos, (xVec3*)&globals.player.ent.model->Mat->pos);
     F32 scale = xVec3Length2(&tmp);
 
+#ifdef PLATFORM_PC
+    if (iCheatIsNoclip())
+    {
+        // Noclip: the player is not near anything. Pretend the distance is
+        // huge so the tiki stays idle and visible, and any mid-hide state
+        // grows back out through the normal else branch.
+        scale = 1e9f;
+    }
+#endif
+
     U8 notSneaking =
         (globals.player.Speed > 1 || globals.player.ent.model == globals.player.model_sandy ||
          globals.player.ent.model == globals.player.model_patrick);
@@ -1523,7 +1536,11 @@ static S32 thunderIdleCB(xGoal* rawgoal, void*, en_trantype* trantype, F32 dt, v
     tiki->model->GreenMultiplier = factor;
 
     goal->tmr_wait -= dt;
+#ifdef PLATFORM_PC
+    if (goal->tmr_wait < 0.0f && !iCheatIsNoclip())
+#else
     if (goal->tmr_wait < 0.0f)
+#endif
     {
         xVec3 vec;
         xVec3Sub(&vec, (xVec3*)&tiki->model->Mat->pos, (xVec3*)&globals.player.ent.model->Mat->pos);

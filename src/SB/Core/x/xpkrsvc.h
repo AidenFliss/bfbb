@@ -88,9 +88,11 @@ struct st_PACKER_ATOC_NODE
     st_HIPLOADDATA* ownpkg;
     st_PACKER_READ_DATA* ownpr;
 
-    // looks like this was removed in the GC version
-    // Evidence: memory allocation; Name function returns a constant
-    // char basename[32];
+    // The per-asset directory name. Retail's GC build dropped this member
+    // (the files zeroed the field and Name returned a constant); the Xbox
+    // HIPs still carry the string in each ADBG chunk, and the port's debug
+    // tooling reads it through PKR_AssetName.
+    char basename[32];
 
     char* Name() const;
 };

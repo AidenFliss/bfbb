@@ -108,6 +108,9 @@ void xMemPoolSetup(xMemPool* pool, void* buffer, U32 nextOffset, U32 flags,
 void* xMemPoolAlloc(xMemPool* pool);
 void xMemPoolFree(xMemPool* pool, void* data);
 
+void xMemGetHeapStats(U32 heapID, U32* used, U32* wasted, U32* size);
+void xMemGetOverflowStats(U32* liveCount, U32* liveBytes, U32* totalFreed);
+
 #define xMemGrowAllocSize(size) xMemGrowAlloc(gActiveHeap, size)
 #define xMemAllocSize(size) xMemAlloc(gActiveHeap, size, 0)
 #define xMemAllocSizeAlign(size, align) xMemAlloc(gActiveHeap, size, align)

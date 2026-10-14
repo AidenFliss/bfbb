@@ -375,6 +375,30 @@ void* xSTFindAsset(U32 aid, U32* size)
     return memloc;
 }
 
+U32 xSTGetAssetType(U32 aid)
+{
+    if (aid == 0)
+    {
+        return 0;
+    }
+
+    S32 scncount = XST_cnt_locked();
+    for (S32 i = 0; i < scncount; i++)
+    {
+        st_STRAN_SCENE* sdata = XST_nth_locked(i);
+        if (g_pkrf->PkgHasAsset(sdata->spkg, aid))
+        {
+            st_PKR_ASSET_TOCINFO tocinfo;
+            if (g_pkrf->GetAssetInfo(sdata->spkg, aid, &tocinfo))
+            {
+                return tocinfo.typeref != NULL ? tocinfo.typeref->typetag : 0;
+            }
+            return 0;
+        }
+    }
+    return 0;
+}
+
 S32 xSTAssetCountByType(U32 type)
 {
     S32 sum = 0;

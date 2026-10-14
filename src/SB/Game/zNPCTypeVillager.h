@@ -103,6 +103,7 @@ struct zNPCFish : zNPCVillager
     S32 FolkHandleMail(NPCMsg* mail);
     void MonitorCowering(xScene* xscn, F32 dt);
     void CheckDoChat();
+    virtual void NPCClearTargetEnt(const xEnt* victim);
     xEntDrive* PRIV_GetDriverData()
     {
         return &raw_drvdata;

@@ -1,5 +1,7 @@
 #include "iWindow.h"
 
+#include <time.h>
+
 // The window for a build that does not draw.
 //
 // This is not a placeholder for a missing implementation -- it is what the
@@ -51,6 +53,39 @@ void iWindowClose()
 }
 
 void iWindowPump()
+{
+}
+
+U64 iWindowGetTicksNS()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (U64)ts.tv_sec * 1000000000ULL + (U64)ts.tv_nsec;
+}
+
+void iWindowPerfNotePresent(U64)
+{
+}
+
+void iWindowPerfNotePace(U64)
+{
+}
+
+U64 iWindowPerfPresentNS()
+{
+    return 0;
+}
+
+U64 iWindowPerfPaceNS()
+{
+    return 0;
+}
+
+void iWindowStartTextInput()
+{
+}
+
+void iWindowStopTextInput()
 {
 }
 

@@ -3130,7 +3130,7 @@ U32 zNPCCommon::SndStart(U32 aid_toplay, NPCSndProp* sprop, F32 radius)
 {
     F32 pvary = 0.0f;
     U32 priority;
-    U32 owner;
+    UPtr owner;
     U32 xsid = 0;
     F32 vol;
     U32 flg_snd;
@@ -3219,7 +3219,7 @@ U32 zNPCCommon::SndStart(U32 aid_toplay, NPCSndProp* sprop, F32 radius)
 
 S32 zNPCCommon::SndIsAnyPlaying()
 {
-    S32 owner = (S32)NPC_SND_OWNER(this);
+    UPtr owner = NPC_SND_OWNER(this);
     S32 yep;
     for (S32 i = 0; i < 4; i++)
     {
@@ -3237,7 +3237,7 @@ S32 zNPCCommon::SndChanIsBusy(S32 flg_chan)
 
 void zNPCCommon::SndKillSounds(S32 flg_chan, S32 all)
 {
-    S32 owner = (S32)NPC_SND_OWNER(this);
+    UPtr owner = NPC_SND_OWNER(this);
     if (all != 0)
     {
         for (S32 i = 0; i < 4; i++)

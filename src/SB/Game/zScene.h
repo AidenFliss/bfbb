@@ -37,6 +37,8 @@ extern U32 gTransitionSceneID;
 extern F32 gSceneUpdateTime;
 
 void zSceneSet(xBase* b, U32 index);
+void zSceneAdopt(xBase* b);
+xBase* zSceneSpawn(U32 assetType, S32 index, const xVec3* pos);
 void zSceneInitEnvironmentalSoundEffect();
 void zSceneInit(U32 theSceneID, S32 reloadInProgress);
 void zSceneExit(S32 beginReload);
@@ -49,6 +51,7 @@ void zSceneSetup();
 void zSceneUpdate(F32 elapsedSec);
 void zSceneRender();
 xBase* zSceneFindObject(U32 gameID);
+void zSceneForgetObject(U32 id, xBase* base);
 xBase* zSceneGetObject(S32 type, S32 idx);
 const char* zSceneGetName(U32 gameID);
 const char* zSceneGetName(xBase* b);

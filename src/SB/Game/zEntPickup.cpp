@@ -11,6 +11,10 @@
 #include "zFX.h"
 #include "zUI.h"
 
+#ifdef PLATFORM_PC
+#include "iCheats.h"
+#endif
+
 #include "xMath.h"
 #include "xMathInlines.h"
 #include "xFX.h"
@@ -628,6 +632,13 @@ static S32 CheckPickupAgainstPlayer(xEnt* cbent, void*)
     {
         return 1;
     }
+
+#ifdef PLATFORM_PC
+    if (iCheatIsPickupCollectDisabled())
+    {
+        return 1;
+    }
+#endif
 
     zEntPickup* ent = (zEntPickup*)cbent;
 

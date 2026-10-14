@@ -24,6 +24,34 @@ void iCheatSetUnlimitedShinies(S32 on);
 void iCheatSetUnlimitedSpatulas(S32 on);
 void iCheatSetUnlimitedHealth(S32 on);
 
+// Fly mode: zEntPlayer_Move has a dormant fly block gated on
+// globals.player.cheat_mode -- rise, sink, shoulder-boosted speed, zero
+// damage, no OOB catch -- and nothing in retail writes the flag, so the block
+// never ran. setFlyMode is one-shot and is undone by zEntPlayerReset (scene
+// switch, OOB drop, respawn). setForceFlyMode re-applies the flag every frame
+// and holds through those resets.
+void iCheatSetFlyMode(S32 on);
+void iCheatSetForceFlyMode(S32 on);
+S32 iCheatIsForceFlyMode();
+
+// Noclip: the player collides with nothing -- collType and chkby zeroed so
+// every pair test skips the player in both directions. Only applies while
+// cheat_mode is on (the UI grays it out otherwise and this side re-checks).
+// Pickups still collect: their touch scan is distance-based, not pair-based.
+void iCheatSetNoclip(S32 on);
+S32 iCheatIsNoclip();
+
+// Request a game-mode switch, consumed by iCheatsUpdate. zGameModeSwitch
+// pauses audio, zeroes pad state and broadcasts events, so it belongs on the
+// update side rather than mid-render where ImGui runs. Last request wins if
+// several land in one frame; an out-of-range mode is ignored.
+void iCheatRequestGameMode(S32 mode);
+
+// Blocks touch-collection only: CheckPickupAgainstPlayer returns early, so
+// scripts and deferred bungee collects still run. Off by default.
+void iCheatSetPickupCollectDisabled(S32 on);
+S32 iCheatIsPickupCollectDisabled();
+
 // The cheats from the retail button codes whose callbacks in zGameExtras.cpp
 // only play a sound. The effect is the bit cheatList sets in
 // zGameExtras_CheatFlags, which the robot AI, the villager AI, the player and

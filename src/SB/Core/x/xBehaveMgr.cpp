@@ -2,15 +2,33 @@
 #include "xBehaveGoalSimple.h"
 #include "xutil.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 static S32 g_modinit;
 static xBehaveMgr* g_behavmgr;
+
+xBehaveMgr::~xBehaveMgr()
+{
+    free(this->psyfree);
+    this->psyfree = NULL;
+    this->psyfreeTop = 0;
+    this->psyfreeAllocd = 0;
+}
 
 void xBehaveMgr_Startup()
 {
     if (g_modinit++ == 0)
     {
         g_behavmgr = new ('BMGR', NULL) xBehaveMgr();
+#ifdef PLATFORM_PC
+        // 0xfa matched the console's placed-NPC count. Runtime spawning and
+        // uncapped AI mean the psyche pool tracks live agents, not a
+        // file-derived ceiling.
+        g_behavmgr->Startup(1024, 256);
+#else
         g_behavmgr->Startup(0xfa, 0xfa);
+#endif
     }
 }
 
@@ -59,6 +77,11 @@ void xBehaveMgr::Startup(S32 size, S32 tmpAlloc)
     XOrdInit(&psylist, size, 0);
     psypool = (xPsyche*)xMemAlloc(gActiveHeap, size * sizeof(xPsyche), 0);
     memset(psypool, 0, size * sizeof(xPsyche));
+    psypoolSize = size;
+    psypoolNext = 0;
+    psyfreeAllocd = size;
+    psyfreeTop = 0;
+    psyfree = (xPsyche**)malloc(size * sizeof(xPsyche*));
 }
 
 void xBehaveMgr::RegBuiltIn()
@@ -66,9 +89,90 @@ void xBehaveMgr::RegBuiltIn()
     xGoalSimple_RegisterTypes(this->goalFactory);
 }
 
+xPsyche* xBehaveMgr::Alloc()
+{
+    if (this->psyfreeTop > 0)
+    {
+        return this->psyfree[--this->psyfreeTop];
+    }
+
+    if (this->psypoolNext < this->psypoolSize)
+    {
+        return &this->psypool[this->psypoolNext++];
+    }
+
+    S32 nalloc = this->psypoolSize;
+
+    if (nalloc < 64)
+    {
+        nalloc = 64;
+    }
+
+    xPsyche* extra = (xPsyche*)malloc(nalloc * sizeof(xPsyche));
+
+    if (extra == NULL)
+    {
+        return NULL;
+    }
+
+    memset(extra, 0, nalloc * sizeof(xPsyche));
+
+    if (this->psyfreeTop + nalloc > this->psyfreeAllocd)
+    {
+        S32 nfree = this->psyfreeAllocd * 2 + nalloc;
+        xPsyche** nlist = (xPsyche**)realloc(this->psyfree, nfree * sizeof(xPsyche*));
+
+        if (nlist == NULL)
+        {
+            return extra;
+        }
+
+        this->psyfree = nlist;
+        this->psyfreeAllocd = nfree;
+    }
+
+    for (S32 i = 1; i < nalloc; i++)
+    {
+        this->psyfree[this->psyfreeTop++] = &extra[i];
+    }
+
+    return extra;
+}
+
+void xBehaveMgr::Release(xPsyche* psy)
+{
+    if (this->psyfreeTop == this->psyfreeAllocd)
+    {
+        S32 nfree = this->psyfreeAllocd * 2;
+
+        if (nfree < 64)
+        {
+            nfree = 64;
+        }
+
+        xPsyche** nlist = (xPsyche**)realloc(this->psyfree, nfree * sizeof(xPsyche*));
+
+        if (nlist == NULL)
+        {
+            return;
+        }
+
+        this->psyfree = nlist;
+        this->psyfreeAllocd = nfree;
+    }
+
+    this->psyfree[this->psyfreeTop++] = psy;
+}
+
 xPsyche* xBehaveMgr::Subscribe(xBase* owner, S32 unk)
 {
-    xPsyche* psy = &this->psypool[this->psylist.cnt];
+    xPsyche* psy = this->Alloc();
+
+    if (psy == NULL)
+    {
+        return NULL;
+    }
+
     XOrdAppend(&this->psylist, psy);
     psy->FreshWipe();
     psy->SetOwner(owner, NULL);
@@ -77,8 +181,14 @@ xPsyche* xBehaveMgr::Subscribe(xBase* owner, S32 unk)
 
 void xBehaveMgr::UnSubscribe(xPsyche* psy)
 {
+    if (psy == NULL)
+    {
+        return;
+    }
+
     psy->KillBrain(this->goalFactory);
     XOrdRemove(&this->psylist, psy, -1);
+    this->Release(psy);
 }
 
 void xBehaveMgr::ScenePrepare()
@@ -144,6 +254,7 @@ xGoal* xPsyche::AddGoal(S32 gid, void* createData)
 
 void xPsyche::FreshWipe()
 {
+    this->goallist = NULL;
     for (S32 i = 0; i < 5; ++i)
     {
         this->goalstak[i] = NULL;

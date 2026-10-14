@@ -19,6 +19,7 @@ struct zNPCBoss : zNPCCommon
     virtual F32 AttackTimeLeft();
     virtual void HoldUpDude();
     virtual void ThanksImDone();
+    virtual void NPCClearTargetEnt(const xEnt* victim);
 
 protected:
     // This prevents implicit destructors from being generated in subclasses of zNPCBoss

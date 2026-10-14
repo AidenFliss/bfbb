@@ -401,6 +401,9 @@ extern _CurrentPlayer gCurrentPlayer;
 extern S32 gWaitingToAutoSave;
 extern S32 gSpongeBall;
 
+struct xEntBoulder;
+xEntBoulder* zEntPlayer_GetBoulderVehicle();
+
 // Defined in zEntPlayer.cpp (.sdata:0x803CAAD8).
 extern F32 default_player_radius;
 
@@ -441,6 +444,8 @@ void zEntPlayer_LoadCheckPoint();
 
 void zEntPlayer_MinimalRender(zEnt* ent);
 U8 zEntPlayer_MinimalUpdate(xEnt* ent, xScene* sc, F32 dt, xVec3& drive_motion);
+
+void zEntPlayer_DebugRender(zEnt* ent);
 
 S32 zEntPlayer_MoveInfo();
 

@@ -963,6 +963,23 @@ void oob_state::fx_render()
     }
 }
 
+bool oob_state::hand_disabled()
+{
+    return (shared.flags & 0x4) != 0;
+}
+
+void oob_state::set_hand_disabled(bool disable)
+{
+    if (disable)
+    {
+        shared.flags |= 0x4;
+    }
+    else
+    {
+        shared.flags &= ~0x4;
+    }
+}
+
 void oob_state::force_start()
 {
     if ((shared.flags & 0x7) == 0x3 && !bungee_state::active())

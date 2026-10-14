@@ -27,6 +27,7 @@ F32 xSTLoadStep(U32);
 void xSTDisconnect(U32 sid, S32 flg_hiphop);
 S32 xSTSwitchScene(U32 sid, void* userdata, S32 (*progmon)(void*, F32));
 void* xSTFindAsset(U32 aid, U32* size);
+U32 xSTGetAssetType(U32 aid);
 S32 xSTAssetCountByType(U32 type);
 void* xSTFindAssetByType(U32 type, S32 idx, U32* size);
 char* xSTAssetName(U32 aid);

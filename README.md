@@ -128,10 +128,17 @@ More in [docs/BUILDING.md](docs/BUILDING.md#troubleshooting).
 
 arm64, Android 7.0 or newer. Vulkan needs a Vulkan 1.3 driver.
 
-Build with Gradle 8.9, JDK 17, the Android SDK, and the NDK version pinned in
+CI publishes a prebuilt APK on every push as the rolling `android-latest`
+prerelease, so you can skip the toolchain entirely: grab
+`bfbb-arm64-v8a.apk` from the repo's Releases page and sideload it.
+
+To build locally, fetch the submodules first -- the default `GL3;VULKAN`
+backends need the Vulkan three, and CMake hard-fails without them. Then use
+Gradle 8.9, JDK 17, the Android SDK, and the NDK version pinned in
 `android/app/build.gradle`:
 
 ```sh
+git submodule update --init --recursive
 cd android
 gradle assembleDebug
 ```

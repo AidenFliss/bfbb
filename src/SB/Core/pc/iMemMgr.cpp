@@ -1,4 +1,5 @@
 #include "iMemMgr.h"
+#include "iConfig.h"
 #include "iHost.h"
 #include "iSystem.h"
 #include "xMemMgr.h"
@@ -18,26 +19,34 @@ static U32 sArenaSize;
 
 // The game heap. xMemInit carves three heaps out of gMemInfo.DRAM, and their
 // sizes are load-bearing: raising this changes which allocations fail, so it
-// stayed at the console's 0x384000 until something was measured to need more.
+// started at the console's 0x384000 until something was measured to need more.
 //
-// Two things were. A 64-bit build: every game object with a pointer in it is
+// Two things did. A 64-bit build: every game object with a pointer in it is
 // larger there -- an xBase is a vtable pointer and a link pointer before it is
 // anything else -- and JF01 ran the heap out while spawning NPCs, which
 // surfaced as RyzMemData::operator new memsetting a NULL. And
 // experimental.hipoly_assets: the goo effect copies a model's vertices,
 // colours and texture coordinates into this heap, and a tessellated model has
 // tens of times as many, which surfaced as zFXGooEnable memcpying into a NULL.
-// 64 MB covers both with room to spare; the arena is reserved low either way,
-// and this much is a small part of a 32-bit process.
-#define IMEM_DRAM_SIZE 0x4000000
+//
+// That first pass settled on 64 MB. The default is now 512 MB: it costs
+// nothing at rest (the arena is reserved, not committed, and the heaps only
+// grow into it as the game allocates), and mass-spawning NPCs -- which the
+// port's dynamic-spawning debug window can do without limit -- pushes far
+// more onto the fast path instead of the malloc fallback. memory.heap_mb
+// overrides it for anyone who wants to trade differently; see iMemInit.
+#define IMEM_DRAM_SIZE_DEFAULT_MB 512
 
 // xMemInit places gxHeap[1] and gxHeap[2] at DRAM.addr + DRAM.size, each
 // IMEM_DRAM_SIZE long -- that is, entirely PAST the block retail allocated for
 // DRAM. On the GameCube those addresses land in the rest of the OS arena and
-// nothing else ever claims them, so the overrun is invisible. Here it would be
-// a wild write into whatever the host allocator put next, so the arena is
-// reserved at twice the size and the second half is left for those two heaps.
-#define IMEM_ARENA_SIZE (IMEM_DRAM_SIZE * 2)
+// nothing else ever claims them. Here it would be a wild write into whatever
+// the host allocator put next, so the arena is reserved at twice the size and
+// the second half is left for those two heaps.
+#define IMEM_ARENA_SIZE (sDramSize * 2)
+
+// Set once in iMemInit from the config; everything below reads it.
+static U32 sDramSize;
 
 // gMemInfo.DRAM.addr is a U32, and xMemInitHeap does pointer arithmetic on it
 // as an integer. Every address the game allocator hands out must therefore fit
@@ -46,6 +55,25 @@ static U32 sArenaSize;
 // asks the OS for a low address by whatever means that OS offers.
 void iMemInit()
 {
+    S32 heapMB = iConfigGetInt("memory.heap_mb", IMEM_DRAM_SIZE_DEFAULT_MB);
+
+    // The arena must fit below 4 GB twice over (the two overlapping heaps), and
+    // the game addresses it with a U32. Clamp to a range that is both useful
+    // and safe rather than trusting an arbitrary typed number.
+    if (heapMB < 16)
+    {
+        heapMB = 16;
+    }
+    else if (heapMB < IMEM_DRAM_SIZE_DEFAULT_MB)
+    {
+        heapMB = IMEM_DRAM_SIZE_DEFAULT_MB;
+    }
+    else if (heapMB > 1024)
+    {
+        heapMB = 1024;
+    }
+
+    sDramSize = (U32)heapMB * 1024 * 1024;
     sArenaSize = IMEM_ARENA_SIZE;
     sArena = iHostReserveLow(sArenaSize);
 
@@ -70,7 +98,7 @@ void iMemInit()
 
     U32 base = (U32)base64;
     mem_base_alloc = base;
-    mem_top_alloc = base + IMEM_DRAM_SIZE;
+    mem_top_alloc = base + sDramSize;
 
     // Retail describes the console's fixed memory map here. On a host there is
     // no OS region at address 0 and no separate audio RAM, but xMemMgr reads
@@ -85,7 +113,7 @@ void iMemInit()
     gMemInfo.stack.flags = 0x820;
 
     gMemInfo.DRAM.addr = base;
-    gMemInfo.DRAM.size = IMEM_DRAM_SIZE;
+    gMemInfo.DRAM.size = sDramSize;
     gMemInfo.DRAM.flags = 0x820;
 
     // ARAM. The host has no equivalent; xSndMgr is what read it.

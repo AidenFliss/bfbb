@@ -1900,7 +1900,10 @@ void xShadowManager_Render()
     i = 0;
     while (i < sMgrCount)
     {
-        if (!xEntIsVisible(sMgrList[i].ent) || (sMgrList[i].ent->model->Flags & 0x400))
+        xEnt* ent = sMgrList[i].ent;
+
+        if (ent == NULL || ent->model == NULL || !xEntIsVisible(ent) ||
+            (ent->model->Flags & 0x400))
         {
             sMgrList[i] = sMgrList[sMgrCount - 1];
             sMgrCount--;
@@ -1994,6 +1997,12 @@ void xShadowManager_Render()
         xEnt* ent = sMgrList[i].ent;
         S32 shadowOutside;
         xVec3 shadVec;
+
+        if (ent == NULL || ent->model == NULL || ent->model->Mat == NULL ||
+            ent->entShadow == NULL)
+        {
+            continue;
+        }
 
         shadVec.x = ent->model->Mat->pos.x;
         shadVec.y = ent->model->Mat->pos.y - 10.0f;

@@ -227,10 +227,15 @@ endif()
 
 # The host-side executables. Off when cross-compiling: they exist to be RUN by
 # ctest and by tools/, and an arm64 binary on an x86-64 build machine cannot
-# be. Nothing the APK contains depends on any of them.
+# be. Nothing the APK contains depends on any of them. The same is true of any
+# cross target (e.g. a Windows PE built from a Linux host), so CMAKE_CROSSCOMPILING
+# gates them off here too.
 if(ANDROID)
   set(BFBB_HOST_TOOLS OFF)
   message(STATUS "bfbb: Android (${ANDROID_ABI}, API ${ANDROID_PLATFORM_LEVEL}) -- libmain.so, no host tools")
+elseif(CMAKE_CROSSCOMPILING)
+  set(BFBB_HOST_TOOLS OFF)
+  message(STATUS "bfbb: cross-compiling to ${CMAKE_SYSTEM_NAME} -- no host tools")
 else()
   set(BFBB_HOST_TOOLS ON)
 endif()
@@ -420,6 +425,9 @@ if(FFMPEG_INCLUDE_DIR AND FFMPEG_AVCODEC_LIBRARY AND FFMPEG_AVFORMAT_LIBRARY
     ${FFMPEG_SWRESAMPLE_LIBRARY}
     ${FFMPEG_AVUTIL_LIBRARY}
   )
+  if(WIN32 AND FFMPEG_AVCODEC_LIBRARY MATCHES "\\.a$")
+    list(APPEND FMV_LIBRARIES m ole32 user32 bcrypt)
+  endif()
   set(FMV_INCLUDES ${FFMPEG_INCLUDE_DIR})
   # Also read by iSoundtrack.cpp, which decodes a replacement music track
   # through the same libraries. A build without them still plays WAVE.
@@ -843,6 +851,26 @@ target_include_directories(bfbb_rw PUBLIC
 target_link_libraries(bfbb_rw PUBLIC librw ${WINDOW_LIBS})
 target_compile_options(bfbb_rw PRIVATE ${BFBB_NO_WARNINGS})
 
+# --- dear imgui ---------------------------------------------------------------
+# Vendored inside the librw submodule at skeleton/imgui, beside the port's
+# RenderWare backend for it. List the translation units that are actually
+# THERE -- the set varies with the vendored imgui's version (imgui_tables.cpp
+# only exists from 1.80; this backend's RenderDrawLists naming predates the
+# 1.66 backend split, so an older imgui is likely). imgui_demo.cpp is not
+# optional: ShowDemoWindow lives in it and nowhere else.
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/librw/skeleton/imgui)
+add_library(imgui STATIC
+  ${IMGUI_DIR}/imgui.cpp
+  ${IMGUI_DIR}/imgui_draw.cpp
+  ${IMGUI_DIR}/imgui_tables.cpp
+  ${IMGUI_DIR}/imgui_widgets.cpp
+  ${IMGUI_DIR}/imgui_demo.cpp
+  ${IMGUI_DIR}/imgui_impl_rw.cpp
+)
+target_include_directories(imgui PUBLIC ${IMGUI_DIR})
+target_link_libraries(imgui PUBLIC librw)
+target_compile_options(imgui PRIVATE ${BFBB_NO_WARNINGS})
+
 # --- the platform layer ------------------------------------------------------
 # Only the interfaces that are implemented. The rest of the i* set is listed in
 # src/SB/Core/pc/README.md with what each one is waiting on; adding a file here
@@ -880,6 +908,7 @@ add_library(bfbb_platform STATIC
   ${PC_DIR}/iPadGlyph.cpp
   ${PC_DIR}/iPadStick.cpp
   ${PC_DIR}/iSystem.cpp
+  ${PC_DIR}/iImgui.cpp
   ${PC_DIR}/iTextPatch.cpp
   ${PC_DIR}/iTour.cpp
   ${PC_DIR}/iScreenBleed.cpp
@@ -1067,6 +1096,7 @@ set_source_files_properties(
   PROPERTIES COMPILE_OPTIONS "${BFBB_EXCEPTIONS}")
 
 target_link_libraries(bfbb_platform PUBLIC bfbb_rw)
+target_link_libraries(bfbb_platform PUBLIC imgui)
 
 # The movie decoder and its audio device. PRIVATE: nothing above bfbb_platform
 # includes an FFmpeg header, and iFMV.cpp is the only caller of either seam.
@@ -1444,6 +1474,16 @@ bfbb_host_link_options(${BFBB_GAME_TARGET})
 if(WIN32)
   # dbghelp is the crash handler in bfbb_main.cpp; see the comment there.
   target_link_libraries(bfbb PRIVATE user32 gdi32 dbghelp)
+
+  # Under MinGW the C++ runtime is linked as static archives so the shipped
+  # exe carries no libstdc++/libgcc/winpthread DLL. The order is lld's: libgcc_eh
+  # references pthread via emutls, so libwinpthread must follow it, and all of
+  # them must come after the objects (which target_link_libraries guarantees by
+  # placing them last on the link line).
+  if(MINGW)
+    target_link_libraries(bfbb PRIVATE
+      -static -lstdc++ -lmingwex -lmingw32 -lgcc -lgcc_eh -lwinpthread)
+  endif()
 
   # No /STACK: the reserve in the PE header applies to every thread created
   # without an explicit size, driver threads included, so a large one is paid

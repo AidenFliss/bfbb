@@ -40,7 +40,7 @@ namespace
     };
 } // namespace
 
-void xSceneInit(xScene* sc, U16 num_trigs, U16 num_stats, U16 num_dyns, U16 num_npcs)
+void xSceneInit(xScene* sc, U32 num_trigs, U32 num_stats, U32 num_dyns, U32 num_npcs)
 {
     sc->flags = 0;
     sc->num_trigs_allocd = num_trigs;
@@ -65,11 +65,23 @@ void xSceneInit(xScene* sc, U16 num_trigs, U16 num_stats, U16 num_dyns, U16 num_
 
     xAnimInit();
     xModelInit();
+#ifdef PLATFORM_PC
+    // Console sized these pools for a few hundred live objects and the frame
+    // budget to refresh them. With distance culling off and runtime spawning
+    // allowed, the counts track world content instead of a fixed ceiling, so
+    // the pools grow to match and shrink only via the same push/pop depth.
+    xAnimPoolInit(&sc->mempool, 256, 1, 0x1, 4);
+    xModelPoolInit(49, 256);
+    xModelPoolInit(74, 64);
+    xModelPoolInit(164, 16);
+    xAnimTempTransitionInit(64);
+#else
     xAnimPoolInit(&sc->mempool, 50, 1, 0x1, 4);
     xModelPoolInit(49, 64);
     xModelPoolInit(74, 8);
     xModelPoolInit(164, 1);
     xAnimTempTransitionInit(16);
+#endif
     xCollideInit(sc);
     xCollideFastInit(sc);
 }
@@ -91,26 +103,79 @@ void xSceneSetup(xScene* sc)
     xEnvSetup(sc->env);
 }
 
+static void xSceneGrowList(xEnt*** list, U32* allocd, U32 count)
+{
+    U32 nalloc = *allocd * 2;
+
+    if (nalloc <= *allocd)
+    {
+        nalloc = *allocd + 256;
+    }
+
+    xEnt** grown = (xEnt**)xMemAllocSize(nalloc * sizeof(xEnt*));
+    if (grown == NULL)
+    {
+        return;
+    }
+
+    memcpy(grown, *list, count * sizeof(xEnt*));
+    *list = grown;
+    *allocd = nalloc;
+}
+
 void xSceneAddEnt(xScene* sc, xEnt* ent)
 {
+    xEnt*** cat = NULL;
+    U32* count = NULL;
+    U32* allocd = NULL;
+
     if (ent->collType == XENT_COLLTYPE_TRIG)
     {
-        sc->trigs[sc->num_trigs++] = ent;
+        cat = &sc->trigs;
+        count = &sc->num_trigs;
+        allocd = &sc->num_trigs_allocd;
     }
     else if (ent->collType == XENT_COLLTYPE_STAT)
     {
-        sc->stats[sc->num_stats++] = ent;
+        cat = &sc->stats;
+        count = &sc->num_stats;
+        allocd = &sc->num_stats_allocd;
     }
     else if (ent->collType == XENT_COLLTYPE_DYN)
     {
-        sc->dyns[sc->num_dyns++] = ent;
+        cat = &sc->dyns;
+        count = &sc->num_dyns;
+        allocd = &sc->num_dyns_allocd;
     }
     else if (ent->collType == XENT_COLLTYPE_NPC)
     {
-        sc->npcs[sc->num_npcs++] = ent;
+        cat = &sc->npcs;
+        count = &sc->num_npcs;
+        allocd = &sc->num_npcs_allocd;
     }
 
-    sc->act_ents[sc->num_act_ents++] = ent;
+    if (cat != NULL)
+    {
+        if (*count >= *allocd)
+        {
+            xSceneGrowList(cat, allocd, *count);
+        }
+
+        if (*count < *allocd)
+        {
+            (*cat)[(*count)++] = ent;
+        }
+    }
+
+    if (sc->num_act_ents >= sc->num_ents_allocd)
+    {
+        xSceneGrowList(&sc->act_ents, &sc->num_ents_allocd, sc->num_act_ents);
+    }
+
+    if (sc->num_act_ents < sc->num_ents_allocd)
+    {
+        sc->act_ents[sc->num_act_ents++] = ent;
+    }
 }
 
 xBase* xSceneResolvID(xScene* sc, U32 id)
@@ -135,7 +200,7 @@ const char* xSceneID2Name(xScene* sc, U32 id)
 
 void xSceneForAllEnts(xScene* sc, xSceneEntCallback func, void* data)
 {
-    for (U16 i = 0; i < sc->num_act_ents; i++)
+    for (U32 i = 0; i < sc->num_act_ents; i++)
     {
         if (!func(sc->act_ents[i], sc, data))
         {
@@ -146,7 +211,7 @@ void xSceneForAllEnts(xScene* sc, xSceneEntCallback func, void* data)
 
 void xSceneForAllStatics(xScene* sc, xSceneEntCallback func, void* data)
 {
-    for (U16 i = 0; i < sc->num_stats; i++)
+    for (U32 i = 0; i < sc->num_stats; i++)
     {
         if (!func(sc->stats[i], sc, data))
         {
@@ -157,7 +222,7 @@ void xSceneForAllStatics(xScene* sc, xSceneEntCallback func, void* data)
 
 void xSceneForAllDynamics(xScene* sc, xSceneEntCallback func, void* data)
 {
-    for (U16 i = 0; i < sc->num_dyns; i++)
+    for (U32 i = 0; i < sc->num_dyns; i++)
     {
         if (!func(sc->dyns[i], sc, data))
         {
@@ -168,7 +233,7 @@ void xSceneForAllDynamics(xScene* sc, xSceneEntCallback func, void* data)
 
 void xSceneForAllNPCs(xScene* sc, xSceneEntCallback func, void* data)
 {
-    for (U16 i = 0; i < sc->num_npcs; i++)
+    for (U32 i = 0; i < sc->num_npcs; i++)
     {
         if (!func(sc->npcs[i], sc, data))
         {

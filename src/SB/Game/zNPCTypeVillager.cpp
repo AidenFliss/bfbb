@@ -1189,6 +1189,14 @@ void zNPCFish::Process(xScene* xscn, F32 dt)
     zNPCVillager::Process(xscn, dt);
 }
 
+void zNPCFish::NPCClearTargetEnt(const xEnt* victim)
+{
+    if (tgt_robonear.ent_target == victim)
+    {
+        tgt_robonear.TargetClear();
+    }
+}
+
 static S32 goalsWhichCheer[6] = { NPC_GOAL_IDLE,    NPC_GOAL_WANDER,     NPC_GOAL_PATROL,
                                   NPC_GOAL_WAITING, NPC_GOAL_PLAYERNEAR, '\0' }; // null-terminated
 

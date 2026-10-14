@@ -602,6 +602,23 @@ xEnt* zNPCMgr::CreateNPC(xEntAsset* asset)
     npc = (zNPCCommon*)npcFactory->CreateItem(nt, NULL, NULL);
 
     npc->Init(asset);
+
+    if (npclist.cnt >= npclist.max)
+    {
+        void** grown = (void**)xMemAlloc(gActiveHeap, npclist.max * 2 * sizeof(void*), 0);
+
+        if (grown != NULL)
+        {
+            for (S32 i = 0; i < npclist.cnt; i++)
+            {
+                grown[i] = npclist.list[i];
+            }
+
+            npclist.list = grown;
+            npclist.max *= 2;
+        }
+    }
+
     XOrdAppend(&npclist, npc);
 
     if (npclist.cnt == npclist.max)

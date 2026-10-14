@@ -10,6 +10,7 @@
 
 #include <types.h>
 #include <string.h>
+#include <stdio.h>
 
 RpMorphTarget anim_coll_old_mt;
 S32 xModelPipeCount[16];
@@ -22,6 +23,9 @@ S32 xModelLookupCount;
 xModelPipeLookup* xModelLookupList;
 S32 xModelInstStaticAlloc;
 S32 xModelBucketEnabled;
+
+extern S32 iModelHack_DisablePrelight;
+RpAtomic* gDbgRenderAtomic;
 
 static RwCamera* CameraCreate(S32 a, S32 b, S32 c);
 void CameraDestroy(RwCamera* cam);
@@ -50,7 +54,7 @@ void xModelInit()
     xModelPipeNumTables = 0;
 }
 
-void xModelPoolInit(U32 count, U32 numMatrices)
+static xModelPool* xModelPoolCreate(U32 count, U32 numMatrices)
 {
     S32 i;
     U8* buffer;
@@ -64,6 +68,9 @@ void xModelPoolInit(U32 count, U32 numMatrices)
     buffer = (U8*)xMemAllocSizeAlign(count * numMatrices * sizeof(RwMatrix) + sizeof(xModelPool) +
                                          count * sizeof(xModelInstance),
                                      16);
+
+    if (buffer == NULL)
+        return NULL;
 
     mat = (RwMatrix*)buffer;
     buffer += count * numMatrices * sizeof(RwMatrix);
@@ -94,6 +101,52 @@ void xModelPoolInit(U32 count, U32 numMatrices)
     }
     pool->Next = curr;
     *prev = pool;
+
+    return pool;
+}
+
+static xModelPool* xModelPoolGrow(U32 minMatrices)
+{
+    xModelPool* pool;
+    U32 numMatrices = minMatrices;
+
+    for (pool = sxModelPoolList; pool != NULL; pool = pool->Next)
+    {
+        if (pool->NumMatrices >= minMatrices)
+        {
+            numMatrices = pool->NumMatrices;
+        }
+    }
+
+    return xModelPoolCreate(32, numMatrices);
+}
+
+void xModelPoolInit(U32 count, U32 numMatrices)
+{
+    xModelPoolCreate(count, numMatrices);
+}
+
+S32 xModelPoolFreeRoom(U16 minMatrices)
+{
+    xModelPool* pool;
+    S32 n = 0;
+
+    for (pool = sxModelPoolList; pool != NULL; pool = pool->Next)
+    {
+        xModelInstance* inst;
+
+        if (pool->NumMatrices < minMatrices)
+        {
+            continue;
+        }
+
+        for (inst = pool->List; inst != NULL; inst = inst->Next)
+        {
+            n++;
+        }
+    }
+
+    return n;
 }
 
 xModelInstance* xModelInstanceAlloc(RpAtomic* data, void* object, U16 flags, U8 boneIndex,
@@ -146,7 +199,12 @@ xModelInstance* xModelInstanceAlloc(RpAtomic* data, void* object, U16 flags, U8 
 
         if (!found)
         {
-            return NULL;
+            found = xModelPoolGrow(matCount);
+
+            if (!found)
+            {
+                return NULL;
+            }
         }
 
         dude = found->List;
@@ -371,6 +429,43 @@ void xModelRenderSingle(xModelInstance* modelInst)
 {
     if ((modelInst->Flags & 0x401) != 0x1)
         return;
+
+    if (gDbgRenderAtomic && modelInst->Data == gDbgRenderAtomic)
+    {
+        static void* dbgObj[16];
+        static S32 dbgCnt[16];
+        static S32 dbgObjs;
+
+        S32 k = -1;
+        for (S32 i = 0; i < dbgObjs; i++)
+        {
+            if (dbgObj[i] == modelInst->Object)
+            {
+                k = i;
+                break;
+            }
+        }
+        if (k < 0 && dbgObjs < 16)
+        {
+            k = dbgObjs++;
+            dbgObj[k] = modelInst->Object;
+        }
+        if (k >= 0 && dbgCnt[k] < 3)
+        {
+            dbgCnt[k]++;
+            RpGeometry* dbggeom = modelInst->Data->geometry;
+            RwTexture* dbgtex =
+                dbggeom->matList.materials[0] ? dbggeom->matList.materials[0]->texture : NULL;
+            printf("DBGRENDER obj=%p nobj=%d cnt=%d lk=%p surf=%p pipe=0x%x flags=0x%x "
+                   "alpha=%.2f gLast=%p hack=%d tex=%p raster=%p geomfl=0x%x bonecnt=%d "
+                   "mat=%p\n",
+                   modelInst->Object, dbgObjs, dbgCnt[k], modelInst->LightKit, modelInst->Surf,
+                   modelInst->PipeFlags, (U32)modelInst->Flags, modelInst->Alpha,
+                   xLightKit_GetCurrent(NULL), iModelHack_DisablePrelight, dbgtex,
+                   dbgtex ? (void*)dbgtex->raster : NULL, dbggeom ? dbggeom->flags : 0,
+                   (S32)modelInst->BoneCount, modelInst->Mat);
+        }
+    }
 
     U8 reset = FALSE;
     xMat3x3 tmpmat;

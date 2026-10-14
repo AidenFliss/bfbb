@@ -309,7 +309,9 @@ RwCamera* RwCameraShowRaster(RwCamera* camera, void* pDev, RwUInt32 flags)
     {
         flipFlags &= ~rwRASTERFLIPWAITVSYNC;
     }
+    U64 presentStart = iWindowGetTicksNS();
     asCamera(camera)->showRaster(flipFlags);
+    iWindowPerfNotePresent(iWindowGetTicksNS() - presentStart);
 
     // **And pace the rate, because waiting on the display is not the same as
     // running at a chosen speed.**

@@ -385,6 +385,7 @@ void zNPCHazard_InitEffects();
 void zNPCHazard_KillEffects();
 S32 HAZ_ord_sorttest(void* vkey, void* vitem);
 void zNPCHazard_Timestep(F32 dt);
+void zNPCHazard_ClearOwner(const zNPCCommon* owner);
 void zNPCCommon_Hazards_RenderAll(S32 doOpaqueStuff);
 
 xAnimTable* ZNPC_AnimTable_HazardStd();

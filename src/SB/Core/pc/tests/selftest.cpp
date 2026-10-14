@@ -145,11 +145,12 @@ static void test_mem()
 
     check(gMemInfo.DRAM.addr != 0, "iMemInit reserved a DRAM arena");
 
-    // 64 MB: retail's 0x384000 ran out under a 64-bit build's larger objects
-    // and under the tessellated models experimental.hipoly_assets hands the
-    // goo effect. iMemMgr.cpp sizes it; this checks the value that reaches the
-    // game.
-    check(gMemInfo.DRAM.size == 0x4000000, "DRAM is 64 MB");
+    // 512 MB by default: retail's 0x384000 ran out under a 64-bit build's
+    // larger objects and under the tessellated models experimental.hipoly_assets
+    // hands the goo effect, and mass-spawning NPCs pushes far more onto the
+    // fast path. memory.heap_mb overrides it; iMemMgr.cpp sizes it, and this
+    // checks the value that reaches the game.
+    check(gMemInfo.DRAM.size == 0x20000000, "DRAM is 512 MB");
 
     // xMemInitHeap does its arithmetic on gMemInfo.DRAM.addr as a U32, so the
     // arena has to be addressable in 32 bits and survive the round trip.
@@ -507,8 +508,8 @@ static void test_config()
         check(strstr(buf, "path =") != NULL, "and the asset path, empty as it has to be");
         check(strstr(buf, "[video]") != NULL, "it has the [video] section header");
         check(strstr(buf, "mode = borderless") != NULL, "and the window mode at its default");
-        check(strstr(buf, "width = 640") != NULL, "and the render width at its default");
-        check(strstr(buf, "height = 480") != NULL, "and the height");
+        check(strstr(buf, "width = 1280") != NULL, "and the render width at its default");
+        check(strstr(buf, "height = 960") != NULL, "and the height");
         check(strstr(buf, "framerate = 60") != NULL, "and the frame rate at the console's");
         check(strstr(buf, "vsync = on") != NULL, "and vsync");
         check(strstr(buf, "draw_distance = on") != NULL, "and the draw distance");

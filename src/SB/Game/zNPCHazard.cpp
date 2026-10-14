@@ -13,6 +13,7 @@
 #include "xutil.h"
 #include "xordarray.h"
 #include "zRenderState.h"
+#include "zDbgRender.h"
 
 extern const xVec3 g_O3;
 
@@ -307,6 +308,22 @@ S32 HAZ_ord_sorttest(void* vkey, void* vitem)
 }
 
 // Close, kind of.
+void zNPCHazard_ClearOwner(const zNPCCommon* owner)
+{
+    if (owner == NULL || g_cnt_activehaz < 1)
+    {
+        return;
+    }
+
+    for (S32 i = 0; i < 64; i++)
+    {
+        if (g_hazards[i].npc_owner == owner)
+        {
+            g_hazards[i].npc_owner = NULL;
+        }
+    }
+}
+
 void zNPCHazard_Timestep(F32 dt)
 {
     NPCHazard* haz;
@@ -3611,6 +3628,8 @@ void NPCHazard::Upd_OilOoze(F32 dt)
         ball->rad_cur = ball->rad_max;
     }
 
+    zDbgAttackRecord(&this->pos_hazard, ball->rad_cur);
+
     if (this->flg_hazard & 0x8 && HAZ_AvailablePool() > 5)
     {
         if (KickOilBurst())
@@ -4286,4 +4305,69 @@ S32 UVAModelInfo::CloneUV(RwTexCoords*& coords, S32& numVertices, RpAtomic* mode
 F32 xVec2Length2(const xVec2* v)
 {
     return xVec2Dot(v, v);
+}
+
+S32 zNPCHazard_CollectDebug(zDbgHazInfo* out, S32 max)
+{
+    if (out == NULL || max <= 0)
+    {
+        return 0;
+    }
+
+    S32 cnt = 0;
+    const S32 numHaz = (S32)(sizeof(g_hazards) / sizeof(g_hazards[0]));
+
+    for (S32 i = 0; i < numHaz && cnt < max; ++i)
+    {
+        NPCHazard* haz = &g_hazards[i];
+
+        if (!(haz->flg_hazard & 1))
+        {
+            continue;
+        }
+
+        U8 hasParab = 0;
+        U8 hasTgt = 0;
+
+        switch (haz->typ_hazard)
+        {
+        case NPC_HAZ_TARTARPROJ:
+        case NPC_HAZ_CHUCKBOMB:
+        case NPC_HAZ_CHUCKBLOOSH:
+        case NPC_HAZ_ARFBONE:
+        case NPC_HAZ_OILBUBBLE:
+        case NPC_HAZ_FUNFRAG:
+        case NPC_HAZ_ROBOBITS:
+            if (haz->custdata.collide.parabinfo.maxTime > 0.0f)
+            {
+                hasParab = 1;
+            }
+            break;
+        default:
+            continue;
+        }
+
+        switch (haz->typ_hazard)
+        {
+        case NPC_HAZ_CHUCKBOMB:
+        case NPC_HAZ_ARFBONE:
+        case NPC_HAZ_OILBUBBLE:
+            hasTgt = 1;
+            break;
+        default:
+            break;
+        }
+
+        zDbgHazInfo* info = &out[cnt];
+        info->type = haz->typ_hazard;
+        info->pos = haz->pos_hazard;
+        info->parab = haz->custdata.collide.parabinfo;
+        info->tgt = haz->custdata.tartar.pos_tgt;
+        info->tcur = haz->tym_lifespan - haz->tmr_remain;
+        info->hasParab = hasParab;
+        info->hasTgt = hasTgt;
+        cnt++;
+    }
+
+    return cnt;
 }

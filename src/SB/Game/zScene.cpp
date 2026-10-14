@@ -29,6 +29,7 @@
 #include "zGust.h"
 #include "zVolume.h"
 #include "zConditional.h"
+#include "zDbgRender.h"
 #include "zEnv.h"
 #include "zUI.h"
 #include "zUIFont.h"
@@ -47,6 +48,7 @@
 #include "zCameraFly.h"
 #include "zCameraTweak.h"
 #include "zNPCMgr.h"
+#include "zNPCSpawn.h"
 #include "zGlobals.h"
 #include "zDispatcher.h"
 #include "zThrown.h"
@@ -146,6 +148,20 @@ _tagClimate gClimate;
 static xVec3 sOldPosPlayer;
 static xVec3 sOldPosCamera;
 static U32 sSuddenMove;
+static U32 s_baseAllocd;
+static U32 s_updateAllocd;
+static U32 s_nextRuntimeId = 0xF00D0000;
+
+struct zSceneRuntimeID
+{
+    U32 runtime;
+    U32 source;
+};
+
+static zSceneRuntimeID* s_runtimeIds;
+static U32 s_runtimeIdCount;
+static U32 s_runtimeIdAllocd;
+static const U32 s_runtimeHeadroom = 512;
 
 struct zSceneLevel
 {
@@ -873,6 +889,322 @@ static U32 BaseTypeNeedsUpdate(U8 baseType)
     return 1;
 }
 
+static void zSceneGrowBase()
+{
+    zScene* s = globals.sceneCur;
+    U32 nalloc = s_baseAllocd * 2;
+
+    if (nalloc <= s_baseAllocd)
+    {
+        nalloc = s_baseAllocd + 1024;
+    }
+
+    xBase** grown = (xBase**)xMemAllocSize(nalloc * sizeof(xBase*));
+    if (grown == NULL)
+    {
+        return;
+    }
+
+    memcpy(grown, s->base, s->num_base * sizeof(xBase*));
+    s->base = grown;
+    s_baseAllocd = nalloc;
+}
+
+static void zSceneGrowUpdateBase()
+{
+    zScene* s = globals.sceneCur;
+    U32 nalloc = s_updateAllocd * 2;
+
+    if (nalloc <= s_updateAllocd)
+    {
+        nalloc = s_updateAllocd + 1024;
+    }
+
+    xBase** grown = (xBase**)xMemAllocSize(nalloc * sizeof(xBase*));
+    if (grown == NULL)
+    {
+        return;
+    }
+
+    memcpy(grown, s->update_base, s->num_update_base * sizeof(xBase*));
+    s->update_base = grown;
+    s_updateAllocd = nalloc;
+}
+
+void zSceneAdopt(xBase* b)
+{
+    zScene* s = globals.sceneCur;
+    bool needsUpdate;
+
+    if (s == NULL || b == NULL)
+    {
+        return;
+    }
+
+    needsUpdate = BaseTypeNeedsUpdate(b->baseType) != 0;
+
+    if (s->base == NULL || s->num_base >= s_baseAllocd)
+    {
+        zSceneGrowBase();
+
+        if (s->base == NULL || s->num_base >= s_baseAllocd)
+        {
+            return;
+        }
+    }
+
+    if (needsUpdate)
+    {
+        if (s->update_base == NULL || s->num_update_base >= s_updateAllocd)
+        {
+            zSceneGrowUpdateBase();
+
+            if (s->update_base == NULL || s->num_update_base >= s_updateAllocd)
+            {
+                return;
+            }
+        }
+    }
+
+    s->base[s->num_base++] = b;
+
+    if (needsUpdate)
+    {
+        s->update_base[s->num_update_base++] = b;
+    }
+
+    zSceneObjHashtableAdd(b->id, b);
+}
+
+#ifdef PLATFORM_PC
+static xLightKit* zObjectLightKit(zScene* s);
+#endif
+
+static void zSceneApplyLightKit(xEnt* ent)
+{
+    xLightKit* kit;
+    xEnvAsset* easset;
+
+    if (ent == NULL || ent->model == NULL || !(ent->baseFlags & 0x20))
+    {
+        return;
+    }
+
+    if ((ent->model->PipeFlags & (0x40 | 0x80)) == 0x40)
+    {
+        return;
+    }
+
+    easset = globals.sceneCur->zen->easset;
+    kit = NULL;
+
+    if (easset->objectLightKit)
+    {
+        kit = (xLightKit*)xSTFindAsset(easset->objectLightKit, NULL);
+    }
+
+#ifdef PLATFORM_PC
+    {
+        xLightKit* rigKit = zObjectLightKit(globals.sceneCur);
+
+        if (rigKit != NULL)
+        {
+            kit = rigKit;
+        }
+    }
+#endif
+
+    ent->lightKit = kit;
+}
+
+static void zSceneSpawnSetup(xBase* b)
+{
+    xScene* sc = globals.sceneCur;
+
+    switch (b->baseType)
+    {
+    case eBaseTypeNPC:
+        ((xNPCBasic*)b)->Setup();
+        ((xNPCBasic*)b)->PostSetup();
+        break;
+    case eBaseTypePlatform:
+        zPlatform_Reset((zPlatform*)b, sc);
+        zPlatform_Setup((zPlatform*)b, sc);
+        break;
+    case eBaseTypePendulum:
+        zPendulum_Reset((_zPendulum*)b, sc);
+        zPendulum_Setup((_zPendulum*)b, sc);
+        break;
+    case eBaseTypeButton:
+        zEntButton_Reset((_zEntButton*)b, sc);
+        zEntButton_Setup((_zEntButton*)b, sc);
+        break;
+    case eBaseTypeStatic:
+    case eBaseTypeTrackPhysics:
+        zEntSimpleObj_Setup((zEntSimpleObj*)b);
+        break;
+    case eBaseTypePickup:
+        zEntPickup_Setup((zEntPickup*)b);
+        zEntPickup_Reset((zEntPickup*)b);
+        break;
+    case eBaseTypeDestructObj:
+        zEntDestructObj_Setup((zEntDestructObj*)b);
+        break;
+    case eBaseTypeBoulder:
+        xEntBoulder_Setup((xEntBoulder*)b);
+        break;
+    case eBaseTypeEGenerator:
+        zEGenerator_Setup((zEGenerator*)b, sc);
+        zEGenerator_Reset((zEGenerator*)b, sc);
+        break;
+    case eBaseTypeTeleportBox:
+        zEntTeleportBox_Setup((_zEntTeleportBox*)b);
+        break;
+    default:
+        break;
+    }
+}
+
+static void zSceneTrackRuntimeID(U32 runtime, U32 source)
+{
+    if (s_runtimeIdCount == s_runtimeIdAllocd)
+    {
+        U32 nalloc = s_runtimeIdAllocd * 2;
+
+        if (nalloc == 0)
+        {
+            nalloc = 256;
+        }
+
+        zSceneRuntimeID* grown =
+            (zSceneRuntimeID*)realloc(s_runtimeIds, nalloc * sizeof(zSceneRuntimeID));
+
+        if (grown == NULL)
+        {
+            return;
+        }
+
+        s_runtimeIds = grown;
+        s_runtimeIdAllocd = nalloc;
+    }
+
+    s_runtimeIds[s_runtimeIdCount].runtime = runtime;
+    s_runtimeIds[s_runtimeIdCount].source = source;
+    s_runtimeIdCount++;
+}
+
+static U32 zSceneResolveRuntimeID(U32 id)
+{
+    for (U32 i = s_runtimeIdCount; i > 0; i--)
+    {
+        if (s_runtimeIds[i - 1].runtime == id)
+        {
+            return s_runtimeIds[i - 1].source;
+        }
+    }
+
+    return 0;
+}
+
+xBase* zSceneSpawn(U32 assetType, S32 index, const xVec3* pos)
+{
+    zSceneObjectInstanceDesc* desc = NULL;
+    xBase* b;
+    xBaseAsset* asset;
+    void* src;
+    U32 assetSize;
+    U32 i;
+    bool isEnt;
+
+    if (globals.sceneCur == NULL)
+    {
+        return NULL;
+    }
+
+    for (i = 0; sInitTable[i].name; i++)
+    {
+        if (sInitTable[i].assetType == assetType)
+        {
+            desc = &sInitTable[i];
+            break;
+        }
+    }
+
+    if (desc == NULL)
+    {
+        return NULL;
+    }
+
+    assetSize = 0;
+    src = xSTFindAssetByType(assetType, index, &assetSize);
+
+    if (src == NULL || assetSize < sizeof(xBaseAsset))
+    {
+        return NULL;
+    }
+
+    asset = (xBaseAsset*)xMemAllocSize(assetSize);
+
+    if (asset == NULL)
+    {
+        return NULL;
+    }
+
+    memcpy(asset, src, assetSize);
+    zSceneTrackRuntimeID(s_nextRuntimeId, asset->id);
+    asset->id = s_nextRuntimeId++;
+
+    isEnt = desc->func == zSceneInitFunc_DefaultEnt || desc->func == zSceneInitFunc_SBNPC;
+
+    if (isEnt && pos != NULL)
+    {
+        ((xEntAsset*)asset)->pos = *pos;
+    }
+
+    if (desc->func == zSceneInitFunc_SBNPC)
+    {
+        b = zNPCMgrSelf()->CreateNPC((xEntAsset*)asset);
+    }
+    else
+    {
+        if (desc->sizeRuntime == 0 || desc->objectInitFunc == NULL)
+        {
+            return NULL;
+        }
+
+        b = (xBase*)xMemAllocSize(desc->sizeRuntime);
+
+        if (b == NULL)
+        {
+            return NULL;
+        }
+
+        memset(b, 0, desc->sizeRuntime);
+        desc->objectInitFunc(b, asset);
+    }
+
+    if (b == NULL)
+    {
+        return NULL;
+    }
+
+    zSceneAdopt(b);
+
+    if (isEnt)
+    {
+        xSceneAddEnt(globals.sceneCur, (xEnt*)b);
+    }
+
+    zSceneSpawnSetup(b);
+
+    if (isEnt)
+    {
+        zSceneApplyLightKit((xEnt*)b);
+    }
+
+    return b;
+}
+
 void add_scene_tweaks();
 
 void zSceneInit(U32 theSceneID, S32 reloadInProgress)
@@ -955,7 +1287,14 @@ void zSceneInit(U32 theSceneID, S32 reloadInProgress)
     sMemDepthJustHIPStart = xMemPushBase();
     s = globals.sceneCur = (zScene*)xMemAllocSize(sizeof(zScene));
 
+#ifdef PLATFORM_PC
+    // Console capped the scene at the sizes its RAM allowed. The PC build
+    // derives nothing from these numbers at load -- they are allocation
+    // ceilings for the entity arrays -- so they grow to headroom.
+    xSceneInit(s, 2048, 8192, 8192, 4096);
+#else
     xSceneInit(s, 200, 2048, 2068, 250);
+#endif
 
     s->env = (xEnv*)xMemAllocSize(sizeof(xEnv));
     s->sceneID = theSceneID;
@@ -1076,6 +1415,7 @@ void zSceneInit(U32 theSceneID, S32 reloadInProgress)
     zDispatcher_scenePrepare();
 
     S32 total_npcs = xSTAssetCountByType('VIL ');
+
     zNPCMgr_scenePrepare(total_npcs);
 
     zAnimListInit();
@@ -1121,14 +1461,8 @@ void zSceneInit(U32 theSceneID, S32 reloadInProgress)
 
     add_dynamic_types(*s);
 
-    if (s->num_base)
-    {
-        s->base = (xBase**)xMemAllocSize(s->num_base * sizeof(xBase*));
-    }
-    else
-    {
-        s->base = NULL;
-    }
+    s_baseAllocd = s->num_base + s_runtimeHeadroom;
+    s->base = (xBase**)xMemAllocSize(s_baseAllocd * sizeof(xBase*));
 
     zSceneObjHashtableInit(4096);
     xFFXPoolInit(12);
@@ -1183,7 +1517,8 @@ void zSceneInit(U32 theSceneID, S32 reloadInProgress)
         }
     }
 
-    s->update_base = (xBase**)xMemAllocSize(s->num_update_base * sizeof(xBase*));
+    s_updateAllocd = s->num_update_base + s_runtimeHeadroom;
+    s->update_base = (xBase**)xMemAllocSize(s_updateAllocd * sizeof(xBase*));
 
     U32 j = 0;
 
@@ -1247,6 +1582,7 @@ void zSceneInit(U32 theSceneID, S32 reloadInProgress)
     xFXSceneInit();
     zGame_HackGalleryInit();
     iSndSuspendCD(0);
+    zNPCSpawnSceneInit();
 }
 
 void add_scene_tweaks()
@@ -1347,6 +1683,11 @@ void zSceneExit(S32 beginReload)
 
         sMemDepthSceneStart = -1;
         sMemDepthJustHIPStart = -1;
+
+        free(s_runtimeIds);
+        s_runtimeIds = NULL;
+        s_runtimeIdCount = 0;
+        s_runtimeIdAllocd = 0;
     }
 
     xSystem_GapTrackReport();
@@ -1794,7 +2135,7 @@ void zSceneLoad(zScene* ent, xSerial* s)
         s->Read(&offsetx);
         s->Read(&offsety);
 
-        for (U16 i = 0; i < globals.sceneCur->num_base; i++)
+        for (U32 i = 0; i < globals.sceneCur->num_base; i++)
         {
             xBase* b = globals.sceneCur->base[i];
 
@@ -2003,6 +2344,8 @@ void zSceneReset()
 
     globals.cmgr = NULL;
 
+    zNPCSpawnScenePreReset();
+
     zEntEventAll(NULL, 0, eEventRoomEnd, NULL);
     zEntEventAll(NULL, 0, eEventSceneEnd, NULL);
 
@@ -2129,6 +2472,8 @@ void zSceneReset()
     zLOD_Update(100);
 
     zGameExtras_SceneReset();
+
+    zNPCSpawnScenePostReset();
 }
 
 static void ActivateCB(xBase* base)
@@ -2914,6 +3259,7 @@ void zSceneUpdate(F32 elapsedSec)
     S32 isPaused;
     zScene* s;
     xBase** b;
+    U32 numUpdateBase;
 
     if (0.0f == elapsedSec)
     {
@@ -2945,7 +3291,6 @@ void zSceneUpdate(F32 elapsedSec)
     }
 
     s = globals.sceneCur;
-    b = s->update_base;
 
     gUIMgr.PreUpdate(s, elapsedSec);
 
@@ -2962,6 +3307,12 @@ void zSceneUpdate(F32 elapsedSec)
     if (!isPaused)
     {
         zNPCMgr_sceneTimestep(s, elapsedSec);
+#ifdef PLATFORM_PC
+        if (zNPCSpawnEnabled() && zNPCSpawnStateAllows())
+        {
+            zNPCSpawnTick();
+        }
+#endif
     }
     else if (s->sceneID == 'B101')
     {
@@ -2992,7 +3343,10 @@ void zSceneUpdate(F32 elapsedSec)
 
     xUpdateCull_Update(globals.updateMgr, sSuddenMove ? 100 : 5);
 
-    for (i = 0; i < s->num_update_base; i++)
+    b = s->update_base;
+    numUpdateBase = s->num_update_base;
+
+    for (i = 0; i < numUpdateBase; i++)
     {
         if (!(b[i]->baseFlags & 0x40))
         {
@@ -3928,6 +4282,11 @@ static void zSceneRenderPostFX()
 void zSceneRender()
 {
     zSceneRenderPreFX();
+
+#ifdef PLATFORM_PC
+    zDbgRenderFrame();
+#endif
+
     xScrFxRender(globals.camera.lo_cam);
     zSceneRenderPostFX();
 }
@@ -3954,7 +4313,7 @@ static S32 zSceneObjHashtableUsage()
     return nidbps;
 }
 
-static void zSceneObjHashtableAdd(U32 id, xBase* base)
+static bool zSceneObjHashtablePut(U32 id, xBase* base)
 {
     S32 k, chkd;
 
@@ -3969,7 +4328,7 @@ static void zSceneObjHashtableAdd(U32 id, xBase* base)
             idbp->id = id;
             idbp->base = base;
             nidbps++;
-            break;
+            return true;
         }
 
         chkd++;
@@ -3979,11 +4338,69 @@ static void zSceneObjHashtableAdd(U32 id, xBase* base)
             chkd = 0;
         }
     }
+
+    return false;
+}
+
+static void zSceneObjHashtableGrow()
+{
+    IDBasePair* old = scobj_idbps;
+    S32 osize = scobj_size;
+    S32 nsize = scobj_size * 2;
+
+    if (nsize <= 0)
+    {
+        nsize = 4096;
+    }
+
+    IDBasePair* grown = (IDBasePair*)xMemAllocSize((U32)nsize * sizeof(IDBasePair));
+    if (grown == NULL)
+    {
+        return;
+    }
+
+    memset(grown, 0, (U32)nsize * sizeof(IDBasePair));
+
+    scobj_idbps = grown;
+    scobj_size = nsize;
+    nidbps = 0;
+
+    for (S32 i = 0; i < osize; i++)
+    {
+        if (old[i].id != 0)
+        {
+            zSceneObjHashtablePut(old[i].id, old[i].base);
+        }
+    }
+}
+
+static void zSceneObjHashtableAdd(U32 id, xBase* base)
+{
+    if (scobj_idbps == NULL || scobj_size <= 0)
+    {
+        return;
+    }
+
+    if (nidbps > scobj_size * 3 / 4)
+    {
+        zSceneObjHashtableGrow();
+    }
+
+    if (!zSceneObjHashtablePut(id, base))
+    {
+        zSceneObjHashtableGrow();
+        zSceneObjHashtablePut(id, base);
+    }
 }
 
 static xBase* zSceneObjHashtableGet(U32 id)
 {
     S32 k, chkd;
+
+    if (scobj_idbps == NULL || scobj_size <= 0)
+    {
+        return NULL;
+    }
 
     chkd = id & (scobj_size - 1);
 
@@ -4015,6 +4432,42 @@ static xBase* zSceneObjHashtableGet(U32 id)
 xBase* zSceneFindObject(U32 gameID)
 {
     return zSceneObjHashtableGet(gameID);
+}
+
+void zSceneForgetObject(U32 id, xBase* base)
+{
+    S32 k, chkd;
+
+    if (scobj_idbps == NULL || scobj_size <= 0)
+    {
+        return;
+    }
+
+    chkd = id & (scobj_size - 1);
+
+    for (k = 0; k < scobj_size; k++)
+    {
+        IDBasePair* idbp = &scobj_idbps[chkd];
+
+        if (idbp->id == 0)
+        {
+            return;
+        }
+
+        if (idbp->id == id && idbp->base == base)
+        {
+            idbp->base = NULL;
+            nidbps--;
+            return;
+        }
+
+        chkd++;
+
+        if (chkd == scobj_size)
+        {
+            chkd = 0;
+        }
+    }
 }
 
 xBase* zSceneGetObject(S32 type, S32 idx)
@@ -4064,6 +4517,18 @@ const char* zSceneGetName(xBase* b)
         {
             return n;
         }
+
+        U32 source = zSceneResolveRuntimeID(b->id);
+
+        if (source != 0)
+        {
+            n = xSTAssetName(source);
+
+            if (n)
+            {
+                return n;
+            }
+        }
     }
 
     return "";
@@ -4075,7 +4540,7 @@ void zSceneForAllBase(xBase* (*func)(xBase*, zScene*, void*), void* data)
 
     if (s)
     {
-        for (U16 i = 0; i < s->num_base; i++)
+        for (U32 i = 0; i < s->num_base; i++)
         {
             if (!func(s->base[i], s, data))
             {
@@ -4091,7 +4556,7 @@ void zSceneForAllBase(xBase* (*func)(xBase*, zScene*, void*), S32 baseType, void
 
     if (s)
     {
-        for (U16 i = 0; i < s->num_base; i++)
+        for (U32 i = 0; i < s->num_base; i++)
         {
             if (baseType == s->base[i]->baseType)
             {

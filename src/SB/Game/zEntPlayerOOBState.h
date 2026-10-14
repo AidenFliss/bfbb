@@ -24,6 +24,9 @@ namespace oob_state
 
     bool IsPlayerInControl();
 
+    bool hand_disabled();
+    void set_hand_disabled(bool disable);
+
     namespace
     {
         enum state_enum
