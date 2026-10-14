@@ -13,7 +13,9 @@ Upstream decomp: [bfbbdecomp/bfbb](https://github.com/bfbbdecomp/bfbb) ·
 
 - The game can be played start to finish. Known bugs remain.
 - Not ready for speedrunning. Many console tricks and glitches still work.
-- No downloads or releases. You build it yourself.
+- Builds for Windows, Linux, macOS and Android are on the
+  [Releases page](https://github.com/joeyballentine/bfbb/releases). They
+  contain no game data.
 - Needs the game files from the **Xbox** release. GameCube and PS2 files are not
   supported.
 - The goal is a modern port with optional extras, not a period-accurate one.
@@ -26,12 +28,15 @@ Upstream decomp: [bfbbdecomp/bfbb](https://github.com/bfbbdecomp/bfbb) ·
 
 ## Quick start (Windows)
 
-1. Install Visual Studio Build Tools (C++ workload), clang, CMake, Ninja and Git.
-2. `git clone --recurse-submodules -b treedome https://github.com/joeyballentine/bfbb.git`
-3. Optionally install FFmpeg and libusb through vcpkg.
-4. Run `build-release.bat`.
-5. Run `bin\bfbb.exe` once. It writes `bin\config.ini` and stops.
-6. Set `[assets] path` in `config.ini` to your extracted Xbox files. Run it again.
+1. Download `bfbb-windows-x86.zip` from the
+   [latest build](https://github.com/joeyballentine/bfbb/releases/tag/latest)
+   and extract it.
+2. Run `bfbb.exe` once. It writes `config.ini` beside itself and stops.
+3. Set `[assets] path` in `config.ini` to your extracted Xbox files. Run it again.
+
+The downloads are built without FFmpeg and libusb: no intro movies, no
+soundtrack replacement, and no Switch 2 controllers or GameCube adapter.
+[Build it yourself](#building) for those.
 
 ## Getting the assets
 
