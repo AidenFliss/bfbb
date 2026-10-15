@@ -523,11 +523,11 @@ void zMainParseINIGlobals(xIniFile* ini)
 
     globals.player.s = &globals.player.sb;
 
-    CalcJumpImpulse(&globals.player.sb.Jump, NULL);
-    CalcJumpImpulse(&globals.player.sb.Double, NULL);
-    CalcJumpImpulse(&globals.player.sb.Bounce, NULL);
-    CalcJumpImpulse(&globals.player.sb.Spring, NULL);
-    CalcJumpImpulse(&globals.player.sb.Wall, NULL);
+    CalcJumpImpulse(&globals.player.sb.Jump, &globals.player.sb);
+    CalcJumpImpulse(&globals.player.sb.Double, &globals.player.sb);
+    CalcJumpImpulse(&globals.player.sb.Bounce, &globals.player.sb);
+    CalcJumpImpulse(&globals.player.sb.Spring, &globals.player.sb);
+    CalcJumpImpulse(&globals.player.sb.Wall, &globals.player.sb);
 
     globals.player.sb_model_indices[0] =
         xIniGetInt(ini, "SB.model_index.body",
@@ -605,11 +605,11 @@ void zMainParseINIGlobals(xIniFile* ini)
 
     globals.player.s = &globals.player.sb;
 
-    CalcJumpImpulse(&globals.player.patrick.Jump, NULL);
-    CalcJumpImpulse(&globals.player.patrick.Double, NULL);
-    CalcJumpImpulse(&globals.player.patrick.Bounce, NULL);
-    CalcJumpImpulse(&globals.player.patrick.Spring, NULL);
-    CalcJumpImpulse(&globals.player.patrick.Wall, NULL);
+    CalcJumpImpulse(&globals.player.patrick.Jump, &globals.player.patrick);
+    CalcJumpImpulse(&globals.player.patrick.Double, &globals.player.patrick);
+    CalcJumpImpulse(&globals.player.patrick.Bounce, &globals.player.patrick);
+    CalcJumpImpulse(&globals.player.patrick.Spring, &globals.player.patrick);
+    CalcJumpImpulse(&globals.player.patrick.Wall, &globals.player.patrick);
 
     globals.player.patrick.WallJumpVelocity =
         xIniGetFloat(ini, "patrick.WallJumpVelocity", 0.0f); // @1001;
@@ -671,11 +671,11 @@ void zMainParseINIGlobals(xIniFile* ini)
 
     globals.player.s = &globals.player.sb;
 
-    CalcJumpImpulse(&globals.player.sandy.Jump, NULL);
-    CalcJumpImpulse(&globals.player.sandy.Double, NULL);
-    CalcJumpImpulse(&globals.player.sandy.Bounce, NULL);
-    CalcJumpImpulse(&globals.player.sandy.Spring, NULL);
-    CalcJumpImpulse(&globals.player.sandy.Wall, NULL);
+    CalcJumpImpulse(&globals.player.sandy.Jump, &globals.player.sandy);
+    CalcJumpImpulse(&globals.player.sandy.Double, &globals.player.sandy);
+    CalcJumpImpulse(&globals.player.sandy.Bounce, &globals.player.sandy);
+    CalcJumpImpulse(&globals.player.sandy.Spring, &globals.player.sandy);
+    CalcJumpImpulse(&globals.player.sandy.Wall, &globals.player.sandy);
 
     globals.player.sandy.WallJumpVelocity =
         xIniGetFloat(ini, "sandy.WallJumpVelocity", 0.0f); // @1001;
@@ -1003,8 +1003,24 @@ void zMainReloadINI()
         iFileSetPath(str);
     }
 
+#ifdef PLATFORM_PC
+    if (iBootCameraSensitivity() > 0.0f)
+    {
+        zcam_pad_pyaw_scale /= iBootCameraSensitivity();
+        zcam_pad_pitch_scale /= iBootCameraSensitivity();
+    }
+#endif
+
     zMainParseINIGlobals(ini);
     zUI_ParseINI(ini);
+
+#ifdef PLATFORM_PC
+    zcam_pad_pyaw_scale *= iBootCameraSensitivity();
+    zcam_pad_pitch_scale *= iBootCameraSensitivity();
+#endif
+
+    globals.player.Jump_CurrGravity = globals.player.g.Gravity;
+
     xIniDestroy(ini);
     RwFree(buf);
 }
