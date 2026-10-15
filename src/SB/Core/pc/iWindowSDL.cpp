@@ -603,10 +603,6 @@ void iWindowPaceFrame()
         sPacerStarted = false;
         return;
     }
-    {
-        sPacerStarted = false;
-        return;
-    }
 
     const Uint64 framePeriodNs = 1000000000ULL / (Uint64)sFrameRate;
 
