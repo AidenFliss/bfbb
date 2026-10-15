@@ -47,6 +47,7 @@
 #include "zEntPlayer.h"
 #include "zEntPlayerOOBState.h"
 #include "zGameState.h"
+#include "zCamera.h"
 #include "zGlobals.h"
 #include "zNPCSpawn.h"
 #include "zPortal.h"
@@ -1672,23 +1673,6 @@ void iImguiNewFrame()
                 "re-anchors their arena to the player instead.");
             }
 
-            // The player position, as integers -- the debug tools this port
-            // ships alongside all print and set whole units. The pos helper
-            // is the null guard: the player entity has no model or frame on
-            // the title screen.
-            const xVec3* ppos = iImguiEntPos(&globals.player.ent);
-            if (ppos != NULL)
-            {
-                ImGui::Text("Player: %d %d %d", (int)ppos->x, (int)ppos->y,
-                            (int)ppos->z);
-            }
-            else
-            {
-                ImGui::Text("Player: n/a");
-            }
-
-            ImGui::Separator();
-
             ImGui::Text("mode: %s", iImguiGameModeName(gGameMode));
             ImGui::SetNextItemWidth(120.0f);
             ImGui::InputText("set mode", sModeBuf, sizeof(sModeBuf));
@@ -1770,235 +1754,313 @@ void iImguiNewFrame()
                 oob_state::set_hand_disabled(full);
             }
 
-            ImGui::Separator();
-            ImGui::Text("Powerups");
-
-            bool bubbleBowl = globals.player.g.PowerUp[0] != 0;
-            if (ImGui::Checkbox("Bubble Bowl Powerup", &bubbleBowl))
+            if (ImGui::CollapsingHeader("Powerups"))
             {
-                globals.player.g.PowerUp[0] = bubbleBowl ? 1 : 0;
-            }
-
-            bool cruiseBubble = globals.player.g.PowerUp[1] != 0;
-            if (ImGui::Checkbox("Cruise Bubble Powerup", &cruiseBubble))
-            {
-                globals.player.g.PowerUp[1] = cruiseBubble ? 1 : 0;
-            }
-
-            if (ImGui::Button("Trigger Spongeball"))
-            {
-                zEntPlayer_setBoulderMode(1);
-            }
-
-            ImGui::Separator();
-            ImGui::Text("Character");
-
-            if (ImGui::Button("Swap Character"))
-            {
-                // Cycle like the bus stop: SpongeBob -> Patrick -> Sandy ->
-                // SpongeBob, but only step onto a character whose model is
-                // actually loaded. The model-apply switch in zEntPlayer also
-                // guards on the model, so a missing asset would otherwise
-                // silently keep the old model with the new id.
-                static const _CurrentPlayer kOrder[] = { eCurrentPlayerSpongeBob,
-                                                         eCurrentPlayerPatrick,
-                                                         eCurrentPlayerSandy };
-
-                                        for (int step = 1; step <= 3; ++step)
-                                        {
-                                            int idx = ((int)gCurrentPlayer + step) % 3;
-                                            _CurrentPlayer cand = kOrder[idx];
-
-                                            xModelInstance* mdl = NULL;
-                                            switch (cand)
-                                            {
-                                            case eCurrentPlayerSpongeBob:
-                                                mdl = globals.player.model_spongebob;
-                                                break;
-                                            case eCurrentPlayerPatrick:
-                                                mdl = globals.player.model_patrick;
-                                                break;
-                                            case eCurrentPlayerSandy:
-                                                mdl = globals.player.model_sandy;
-                                                break;
-                                            default:
-                                                break;
-                                            }
-
-                                            if (mdl != NULL)
-                                            {
-                                                gCurrentPlayer = cand;
-                                                break;
-                                            }
-                                        }
-            }
-
-            static const char* kPlayerNames[] = { "SpongeBob", "Patrick", "Sandy" };
-            const char* curName = "?";
-            if (gCurrentPlayer >= eCurrentPlayerSpongeBob && gCurrentPlayer < eCurrentPlayerCount)
-            {
-                curName = kPlayerNames[gCurrentPlayer];
-            }
-            ImGui::Text("current: %s", curName);
-
-            ImGui::Separator();
-            ImGui::Text("Movement");
-
-            xEntFrame* frame = globals.player.ent.frame;
-
-            if (frame != NULL)
-            {
-                const xVec3& vel = frame->vel;
-                F32 speed = xsqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
-
-                ImGui::Text("vel: %.2f %.2f %.2f  (|%.2f|)", vel.x, vel.y, vel.z, speed);
-            }
-
-            ImGui::Text("bubble bowl: %s  initVel: %.2f  min: %.2f",
-                        globals.player.IsBubbleBowling ? "YES" : "no",
-                        globals.player.bbowlInitVel,
-                        globals.player.g.BubbleBowlMinSpeed);
-
-            static float sSetSpeed = 0.0f;
-            ImGui::SetNextItemWidth(120.0f);
-            ImGui::InputFloat("set speed", &sSetSpeed, 0.5f, 2.0f, "%.2f");
-            ImGui::SameLine();
-            if (ImGui::Button("apply") && frame != NULL)
-            {
-                xVec3& vel = frame->vel;
-                F32 len = xsqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
-
-                if (len > 0.0001f)
+                bool bubbleBowl = globals.player.g.PowerUp[0] != 0;
+                if (ImGui::Checkbox("Bubble Bowl Powerup", &bubbleBowl))
                 {
-                    F32 s = sSetSpeed / len;
-                    vel.x *= s;
-                    vel.y *= s;
-                    vel.z *= s;
+                    globals.player.g.PowerUp[0] = bubbleBowl ? 1 : 0;
+                }
+
+                bool cruiseBubble = globals.player.g.PowerUp[1] != 0;
+                if (ImGui::Checkbox("Cruise Bubble Powerup", &cruiseBubble))
+                {
+                    globals.player.g.PowerUp[1] = cruiseBubble ? 1 : 0;
+                }
+
+                if (ImGui::Button("Trigger Spongeball"))
+                {
+                    zEntPlayer_setBoulderMode(1);
+                }
+            }
+
+            if (ImGui::CollapsingHeader("Character"))
+            {
+                if (ImGui::Button("Swap Character"))
+                {
+                    // Cycle like the bus stop: SpongeBob -> Patrick -> Sandy ->
+                    // SpongeBob, but only step onto a character whose model is
+                    // actually loaded. The model-apply switch in zEntPlayer also
+                    // guards on the model, so a missing asset would otherwise
+                    // silently keep the old model with the new id.
+                    static const _CurrentPlayer kOrder[] = { eCurrentPlayerSpongeBob,
+                                                             eCurrentPlayerPatrick,
+                                                             eCurrentPlayerSandy };
+
+                    for (int step = 1; step <= 3; ++step)
+                    {
+                        int idx = ((int)gCurrentPlayer + step) % 3;
+                        _CurrentPlayer cand = kOrder[idx];
+
+                        xModelInstance* mdl = NULL;
+                        switch (cand)
+                        {
+                        case eCurrentPlayerSpongeBob:
+                            mdl = globals.player.model_spongebob;
+                            break;
+                        case eCurrentPlayerPatrick:
+                            mdl = globals.player.model_patrick;
+                            break;
+                        case eCurrentPlayerSandy:
+                            mdl = globals.player.model_sandy;
+                            break;
+                        default:
+                            break;
+                        }
+
+                        if (mdl != NULL)
+                        {
+                            gCurrentPlayer = cand;
+                            break;
+                        }
+                    }
+                }
+
+                static const char* kPlayerNames[] = { "SpongeBob", "Patrick", "Sandy" };
+                const char* curName = "?";
+                if (gCurrentPlayer >= eCurrentPlayerSpongeBob &&
+                    gCurrentPlayer < eCurrentPlayerCount)
+                {
+                    curName = kPlayerNames[gCurrentPlayer];
+                }
+                ImGui::Text("current: %s", curName);
+            }
+
+            if (ImGui::CollapsingHeader("Player movement", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                // The player position, as integers -- the debug tools this port
+                // ships alongside all print and set whole units. The pos helper
+                // is the null guard: the player entity has no model or frame on
+                // the title screen.
+                const xVec3* ppos = iImguiEntPos(&globals.player.ent);
+                if (ppos != NULL)
+                {
+                    ImGui::Text("pos: %d %d %d", (int)ppos->x, (int)ppos->y, (int)ppos->z);
                 }
                 else
                 {
-                    RwMatrix* mat = globals.player.ent.model->Mat;
-                    vel.x = mat->at.x * sSetSpeed;
-                    vel.y = mat->at.y * sSetSpeed;
-                    vel.z = mat->at.z * sSetSpeed;
+                    ImGui::Text("pos: n/a");
                 }
-            }
 
-            ImGui::Separator();
-            ImGui::Text("Debug Tools");
+                xEntFrame* frame = globals.player.ent.frame;
 
-            if (ImGui::Button("Reload Level"))
-            {
-                iImguiReloadLevel();
-            }
-
-            ImGui::SameLine();
-            if (ImGui::Button("Kill Player"))
-            {
-                iImguiKillPlayer();
-            }
-
-            ImGui::SameLine();
-            if (ImGui::Button("Sundae Powerup"))
-            {
-                globals.player.SundaeTimer = globals.player.g.SundaeTime;
-                globals.player.SpeedMult = globals.player.g.SundaeMult;
-            }
-
-            {
-                bool td = globals.player.g.TakeDamage != 0;
-
-                if (ImGui::Checkbox("Take Damage", &td))
+                if (frame != NULL)
                 {
-                    globals.player.g.TakeDamage = td ? 1 : 0;
+                    const xVec3& vel = frame->vel;
+                    F32 speed = xsqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
+
+                    ImGui::Text("vel: %.2f %.2f %.2f  (|%.2f|)", vel.x, vel.y, vel.z, speed);
                 }
-            }
 
-            ImGui::SetNextItemWidth(120.0f);
-
-            if (ImGui::InputFloat("gravity", &globals.player.g.Gravity, 1.0f, 5.0f, "%.2f"))
-            {
-                globals.player.Jump_CurrGravity = globals.player.g.Gravity;
-                CalcJumpImpulse(&globals.player.sb.Jump, &globals.player.sb);
-                CalcJumpImpulse(&globals.player.sb.Double, &globals.player.sb);
-                CalcJumpImpulse(&globals.player.sb.Bounce, &globals.player.sb);
-                CalcJumpImpulse(&globals.player.sb.Spring, &globals.player.sb);
-                CalcJumpImpulse(&globals.player.sb.Wall, &globals.player.sb);
-                CalcJumpImpulse(&globals.player.patrick.Jump, &globals.player.patrick);
-                CalcJumpImpulse(&globals.player.patrick.Double, &globals.player.patrick);
-                CalcJumpImpulse(&globals.player.patrick.Bounce, &globals.player.patrick);
-                CalcJumpImpulse(&globals.player.patrick.Spring, &globals.player.patrick);
-                CalcJumpImpulse(&globals.player.patrick.Wall, &globals.player.patrick);
-                CalcJumpImpulse(&globals.player.sandy.Jump, &globals.player.sandy);
-                CalcJumpImpulse(&globals.player.sandy.Double, &globals.player.sandy);
-                CalcJumpImpulse(&globals.player.sandy.Bounce, &globals.player.sandy);
-                CalcJumpImpulse(&globals.player.sandy.Spring, &globals.player.sandy);
-                CalcJumpImpulse(&globals.player.sandy.Wall, &globals.player.sandy);
-            }
-
-            ImGui::Text("walk / run speed");
-            ImGui::SetNextItemWidth(90.0f);
-            ImGui::InputFloat("SB##w", &globals.player.sb.MoveSpeed[1], 0.1f, 0.5f, "%.2f");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(90.0f);
-            ImGui::InputFloat("##sbr", &globals.player.sb.MoveSpeed[2], 0.1f, 0.5f, "%.2f");
-            ImGui::SetNextItemWidth(90.0f);
-            ImGui::InputFloat("Patrick##w", &globals.player.patrick.MoveSpeed[1], 0.1f, 0.5f, "%.2f");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(90.0f);
-            ImGui::InputFloat("##patr", &globals.player.patrick.MoveSpeed[2], 0.1f, 0.5f, "%.2f");
-            ImGui::SetNextItemWidth(90.0f);
-            ImGui::InputFloat("Sandy##w", &globals.player.sandy.MoveSpeed[1], 0.1f, 0.5f, "%.2f");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(90.0f);
-            ImGui::InputFloat("##sandr", &globals.player.sandy.MoveSpeed[2], 0.1f, 0.5f, "%.2f");
-            ImGui::SetNextItemWidth(120.0f);
-            ImGui::InputFloat("bowl min speed", &globals.player.g.BubbleBowlMinSpeed, 0.1f, 0.5f,
-                              "%.2f");
-
-            ImGui::Separator();
-            ImGui::Text("Debug Rendering");
-
-            ImGui::Checkbox("##dbg_on", &gDbgRender.on);
-            ImGui::SameLine();
-            ImGui::Text("master");
-
-            if (gDbgRender.on)
-            {
-                if (ImGui::BeginChild("dbg_render_subs", ImVec2(300.0f, 170.0f), true))
+                ImGui::SetNextItemWidth(120.0f);
+                ImGui::InputFloat("cruise boost speed", &globals.player.bbowlInitVel, 0.5f, 2.0f,
+                                  "%.2f");
+                ImGui::SameLine();
+                if (ImGui::Button("trigger boost"))
                 {
-                    ImGui::Checkbox("AI prediction", &gDbgRender.predict);
-                    ImGui::Checkbox("robot kill hitbox", &gDbgRender.robotkill);
-                    ImGui::Checkbox("nav path / chase", &gDbgRender.nav);
-                    ImGui::Checkbox("player arrows", &gDbgRender.playerarrow);
-                    ImGui::Checkbox("boss marker", &gDbgRender.boss);
-                    ImGui::Checkbox("projectile path", &gDbgRender.projectile);
-                    ImGui::Checkbox("boulder path", &gDbgRender.boulder);
-                    ImGui::Checkbox("attack viz", &gDbgRender.attack);
-                    ImGui::Checkbox("platform path", &gDbgRender.platpath);
+                    iCheatRequestCruiseBoost();
                 }
-                ImGui::EndChild();
 
-                if (gDbgRender.boss)
+                ImGui::Text("bubble bowl: %s  initVel: %.2f  min: %.2f",
+                            globals.player.IsBubbleBowling ? "YES" : "no",
+                            globals.player.bbowlInitVel, globals.player.g.BubbleBowlMinSpeed);
+
+                static float sSetSpeed = 0.0f;
+                ImGui::SetNextItemWidth(120.0f);
+                ImGui::InputFloat("set speed", &sSetSpeed, 0.5f, 2.0f, "%.2f");
+                ImGui::SameLine();
+                if (ImGui::Button("apply") && frame != NULL)
                 {
-                    static zDbgBossInfo sBosses[16];
-                    S32 bossCnt = zDbgCollectBosses(sBosses, 16);
+                    xVec3& vel = frame->vel;
+                    F32 len = xsqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
 
-                    if (bossCnt > 0)
+                    if (len > 0.0001f)
                     {
-                        ImGui::Separator();
-                        ImGui::Text("Bosses (%d)", bossCnt);
+                        F32 s = sSetSpeed / len;
+                        vel.x *= s;
+                        vel.y *= s;
+                        vel.z *= s;
+                    }
+                    else
+                    {
+                        RwMatrix* mat = globals.player.ent.model->Mat;
+                        vel.x = mat->at.x * sSetSpeed;
+                        vel.y = mat->at.y * sSetSpeed;
+                        vel.z = mat->at.z * sSetSpeed;
+                    }
+                }
+            }
 
-                        for (S32 b = 0; b < bossCnt; ++b)
+            if (ImGui::CollapsingHeader("Debug Tools"))
+            {
+                if (ImGui::Button("Reload Level"))
+                {
+                    iImguiReloadLevel();
+                }
+
+                ImGui::SameLine();
+                if (ImGui::Button("Kill Player"))
+                {
+                    iImguiKillPlayer();
+                }
+
+                ImGui::SameLine();
+                if (ImGui::Button("Sundae Powerup"))
+                {
+                    globals.player.SundaeTimer = globals.player.g.SundaeTime;
+                    globals.player.SpeedMult = globals.player.g.SundaeMult;
+                }
+
+                {
+                    bool td = globals.player.g.TakeDamage != 0;
+
+                    if (ImGui::Checkbox("Take Damage", &td))
+                    {
+                        globals.player.g.TakeDamage = td ? 1 : 0;
+                    }
+                }
+
+                ImGui::SetNextItemWidth(120.0f);
+
+                if (ImGui::InputFloat("gravity", &globals.player.g.Gravity, 1.0f, 5.0f, "%.2f"))
+                {
+                    globals.player.Jump_CurrGravity = globals.player.g.Gravity;
+                    CalcJumpImpulse(&globals.player.sb.Jump, &globals.player.sb);
+                    CalcJumpImpulse(&globals.player.sb.Double, &globals.player.sb);
+                    CalcJumpImpulse(&globals.player.sb.Bounce, &globals.player.sb);
+                    CalcJumpImpulse(&globals.player.sb.Spring, &globals.player.sb);
+                    CalcJumpImpulse(&globals.player.sb.Wall, &globals.player.sb);
+                    CalcJumpImpulse(&globals.player.patrick.Jump, &globals.player.patrick);
+                    CalcJumpImpulse(&globals.player.patrick.Double, &globals.player.patrick);
+                    CalcJumpImpulse(&globals.player.patrick.Bounce, &globals.player.patrick);
+                    CalcJumpImpulse(&globals.player.patrick.Spring, &globals.player.patrick);
+                    CalcJumpImpulse(&globals.player.patrick.Wall, &globals.player.patrick);
+                    CalcJumpImpulse(&globals.player.sandy.Jump, &globals.player.sandy);
+                    CalcJumpImpulse(&globals.player.sandy.Double, &globals.player.sandy);
+                    CalcJumpImpulse(&globals.player.sandy.Bounce, &globals.player.sandy);
+                    CalcJumpImpulse(&globals.player.sandy.Spring, &globals.player.sandy);
+                    CalcJumpImpulse(&globals.player.sandy.Wall, &globals.player.sandy);
+                }
+
+                ImGui::Text("walk / run speed");
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("SB##w", &globals.player.sb.MoveSpeed[1], 0.1f, 0.5f, "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("##sbr", &globals.player.sb.MoveSpeed[2], 0.1f, 0.5f, "%.2f");
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("Patrick##w", &globals.player.patrick.MoveSpeed[1], 0.1f, 0.5f,
+                                  "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("##patr", &globals.player.patrick.MoveSpeed[2], 0.1f, 0.5f,
+                                  "%.2f");
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("Sandy##w", &globals.player.sandy.MoveSpeed[1], 0.1f, 0.5f,
+                                  "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("##sandr", &globals.player.sandy.MoveSpeed[2], 0.1f, 0.5f,
+                                  "%.2f");
+                ImGui::SetNextItemWidth(120.0f);
+                ImGui::InputFloat("bowl min speed", &globals.player.g.BubbleBowlMinSpeed, 0.1f,
+                                  0.5f, "%.2f");
+            }
+
+            if (ImGui::CollapsingHeader("Camera"))
+            {
+                bool freecam = zCameraFreeCamGet() != 0;
+                if (ImGui::Checkbox("freecam", &freecam))
+                {
+                    zCameraFreeCamSet(freecam ? 1 : 0);
+                }
+
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("pad yaw scale", &zcam_pad_pyaw_scale, 0.01f, 0.05f, "%.4f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("##pads", &zcam_pad_pitch_scale, 0.01f, 0.05f, "%.4f");
+
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("fov", &zcam_fovdest, 1.0f, 5.0f, "%.1f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(90.0f);
+                ImGui::InputFloat("overrot rate", &zcam_overrot_rate, 0.01f, 0.05f, "%.3f");
+
+                ImGui::Text("near  d / h / pitch");
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##nd", &zcam_near_d, 0.1f, 0.5f, "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##nh", &zcam_near_h, 0.1f, 0.5f, "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##np", &zcam_near_pitch, 0.01f, 0.05f, "%.3f");
+
+                ImGui::Text("far   d / h / pitch");
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##fd", &zcam_far_d, 0.1f, 0.5f, "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##fh", &zcam_far_h, 0.1f, 0.5f, "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##fp", &zcam_far_pitch, 0.01f, 0.05f, "%.3f");
+
+                ImGui::Text("wall  d / h / pitch");
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##wd", &zcam_wall_d, 0.1f, 0.5f, "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##wh", &zcam_wall_h, 0.1f, 0.5f, "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(85.0f);
+                ImGui::InputFloat("##wp", &zcam_wall_pitch, 0.01f, 0.05f, "%.3f");
+            }
+
+            if (ImGui::CollapsingHeader("Debug Rendering"))
+            {
+                ImGui::Checkbox("##dbg_on", &gDbgRender.on);
+                ImGui::SameLine();
+                ImGui::Text("master");
+
+                if (gDbgRender.on)
+                {
+                    if (ImGui::BeginChild("dbg_render_subs", ImVec2(300.0f, 170.0f), true))
+                    {
+                        ImGui::Checkbox("AI prediction", &gDbgRender.predict);
+                        ImGui::Checkbox("robot kill hitbox", &gDbgRender.robotkill);
+                        ImGui::Checkbox("nav path / chase", &gDbgRender.nav);
+                        ImGui::Checkbox("player arrows", &gDbgRender.playerarrow);
+                        ImGui::Checkbox("boss marker", &gDbgRender.boss);
+                        ImGui::Checkbox("projectile path", &gDbgRender.projectile);
+                        ImGui::Checkbox("boulder path", &gDbgRender.boulder);
+                        ImGui::Checkbox("attack viz", &gDbgRender.attack);
+                        ImGui::Checkbox("platform path", &gDbgRender.platpath);
+                    }
+                    ImGui::EndChild();
+
+                    if (gDbgRender.boss)
+                    {
+                        static zDbgBossInfo sBosses[16];
+                        S32 bossCnt = zDbgCollectBosses(sBosses, 16);
+
+                        if (bossCnt > 0)
                         {
-                            char goal[5];
-                            zDbgGoalFourCC(sBosses[b].goalID, goal);
+                            ImGui::Separator();
+                            ImGui::Text("Bosses (%d)", bossCnt);
 
-                            ImGui::Text(
-                                "%s  pos(%.1f %.1f %.1f)\n  goal %s  vuln 0x%08X  invuln %.2f",
-                                zDbgTypeName(sBosses[b].type), sBosses[b].pos.x,
-                                sBosses[b].pos.y, sBosses[b].pos.z, goal,
-                                (unsigned)sBosses[b].flg_vuln, sBosses[b].tmr_invuln);
+                            for (S32 b = 0; b < bossCnt; ++b)
+                            {
+                                char goal[5];
+                                zDbgGoalFourCC(sBosses[b].goalID, goal);
+
+                                ImGui::Text(
+                                    "%s  pos(%.1f %.1f %.1f)\n  goal %s  vuln 0x%08X  invuln %.2f",
+                                    zDbgTypeName(sBosses[b].type), sBosses[b].pos.x,
+                                    sBosses[b].pos.y, sBosses[b].pos.z, goal,
+                                    (unsigned)sBosses[b].flg_vuln, sBosses[b].tmr_invuln);
+                            }
                         }
                     }
                 }

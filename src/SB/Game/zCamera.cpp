@@ -7,6 +7,7 @@
 #include "zGlobals.h"
 #include "zMusic.h"
 #include "iMath.h"
+#include "xMath3.h"
 #include "xMathInlines.h"
 #include "xVec3Inlines.h"
 #include "xScrFx.h"
@@ -70,6 +71,38 @@ F32 zcam_overrot_velmin = 3.0f;
 F32 zcam_overrot_velmax = 5.0f;
 F32 zcam_overrot_tmanual = 1.5f;
 F32 zcam_mintgtheight = -9.9999997E37f;
+
+static S32 sFreeCam = 0;
+static S32 sFreeCamSeeded = 0;
+static F32 sFreeCamYaw = 0.0f;
+static F32 sFreeCamPitch = 0.0f;
+
+S32 zCameraFreeCamGet()
+{
+    return sFreeCam;
+}
+
+void zCameraFreeCamSet(S32 on)
+{
+    on = on ? 1 : 0;
+
+    if (on == sFreeCam)
+    {
+        return;
+    }
+
+    sFreeCam = on;
+
+    if (sFreeCam)
+    {
+        sFreeCamSeeded = 0;
+        zEntPlayerControlOff(CONTROL_OWNER_FREECAM);
+    }
+    else
+    {
+        zEntPlayerControlOn(CONTROL_OWNER_FREECAM);
+    }
+}
 
 namespace
 {
@@ -899,6 +932,80 @@ void zCameraUpdate(xCamera* cam, F32 dt)
         zCameraFlyRestoreBackup(&zcam_backupcam);
         zcam_flyasset_current = 0;
         xCameraSetFOV(cam, 75.0f);
+    }
+
+    if (sFreeCam != 0)
+    {
+        if (sFreeCamSeeded == 0)
+        {
+            sFreeCamYaw = atan2f(cam->mat.at.x, cam->mat.at.z);
+            sFreeCamPitch = -asinf(cam->mat.at.y);
+            sFreeCamSeeded = 1;
+        }
+
+        F32 lookX = 0.0f;
+        F32 lookY = 0.0f;
+        F32 moveX = 0.0f;
+        F32 moveY = 0.0f;
+        F32 moveZ = 0.0f;
+
+        if (globals.pad0 != NULL)
+        {
+            lookX = globals.pad0->analog[1].offset.x;
+            lookY = globals.pad0->analog[1].offset.y;
+            moveX = globals.pad0->analog[0].offset.x;
+            moveY = globals.pad0->analog[0].offset.y;
+
+            if ((globals.pad0->on & XPAD_BUTTON_RIGHT) != 0)
+            {
+                moveX += 1.0f;
+            }
+            if ((globals.pad0->on & XPAD_BUTTON_LEFT) != 0)
+            {
+                moveX -= 1.0f;
+            }
+            if ((globals.pad0->on & XPAD_BUTTON_UP) != 0)
+            {
+                moveY += 1.0f;
+            }
+            if ((globals.pad0->on & XPAD_BUTTON_DOWN) != 0)
+            {
+                moveY -= 1.0f;
+            }
+            if ((globals.pad0->on & XPAD_BUTTON_R1) != 0)
+            {
+                moveZ += 1.0f;
+            }
+            if ((globals.pad0->on & XPAD_BUTTON_L1) != 0)
+            {
+                moveZ -= 1.0f;
+            }
+        }
+
+        sFreeCamYaw += lookX * 2.5f * dt;
+        sFreeCamPitch += lookY * 2.0f * dt;
+
+        if (sFreeCamPitch > 1.553343f)
+        {
+            sFreeCamPitch = 1.553343f;
+        }
+        if (sFreeCamPitch < -1.553343f)
+        {
+            sFreeCamPitch = -1.553343f;
+        }
+
+        xMat3x3Euler(&cam->mat, sFreeCamYaw, sFreeCamPitch, 0.0f);
+
+        F32 spd = 60.0f * dt;
+        cam->mat.pos.x +=
+            (cam->mat.right.x * moveX + cam->mat.at.x * moveY + cam->mat.up.x * moveZ) * spd;
+        cam->mat.pos.y +=
+            (cam->mat.right.y * moveX + cam->mat.at.y * moveY + cam->mat.up.y * moveZ) * spd;
+        cam->mat.pos.z +=
+            (cam->mat.right.z * moveX + cam->mat.at.z * moveY + cam->mat.up.z * moveZ) * spd;
+
+        iCameraUpdatePos(cam->lo_cam, &cam->mat);
+        return;
     }
 
     if (stop_track != 0)

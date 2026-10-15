@@ -127,5 +127,7 @@ void zCameraDisableWallJump(xCamera* cam);
 void zCameraSetReward(S32 on);
 void zCameraMinTargetHeightSet(F32 height);
 void zCameraMinTargetHeightClear();
+void zCameraFreeCamSet(S32 on);
+S32 zCameraFreeCamGet();
 
 #endif
