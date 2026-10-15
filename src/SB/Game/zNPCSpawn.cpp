@@ -25,6 +25,7 @@
 #include "zNPCTypeRobot.h"
 #include "zNPCSupport.h"
 #include "zNPCHazard.h"
+#include "zNPCMessenger.h"
 #include "zMovePoint.h"
 #include "zScene.h"
 
@@ -75,6 +76,7 @@ static void zNPCSpawnUnlink(xEnt* npc);
 static void zNPCSpawnLog(const char* fmt, ...);
 
 static U32 s_stressTarget;
+static U32 s_stressKillPct;
 static U32 s_stressBatch = 20;
 static bool s_stressInit;
 
@@ -86,6 +88,30 @@ static void zNPCSpawnStressSetup()
     }
 
     s_stressInit = true;
+
+    const char* kenv = getenv("BFBB_STRESS_KILLPCT");
+
+    if (kenv != NULL && kenv[0] != '\0')
+    {
+        long k = strtol(kenv, NULL, 10);
+
+        if (k < 0)
+        {
+            k = 0;
+        }
+
+        if (k > 100)
+        {
+            k = 100;
+        }
+
+        s_stressKillPct = (U32)k;
+
+        if (s_stressKillPct > 0)
+        {
+            zNPCSpawnLog("STRESS killpct armed pct=%u", s_stressKillPct);
+        }
+    }
 
     const char* env = getenv("BFBB_STRESS_SPAWN");
 
@@ -129,6 +155,53 @@ static void zNPCSpawnStressKillOldest()
     if (e != NULL)
     {
         zNPCSpawnUnlink(e);
+    }
+}
+
+// Emulates a real hit so the mass-kill goes through the game's own death path
+// (Damage -> goal transition -> afterlife) instead of the hand-rolled teardown.
+// DMGTYP_INSTAKILL forces tmr_invuln to -1 first, so it always lands; who == NULL
+// skips the player-immunity gate at the top of zNPCCommon::Damage.
+static void zNPCSpawnStressHit(zNPCCommon* npc)
+{
+    if (npc == NULL)
+    {
+        return;
+    }
+
+    npc->Damage(DMGTYP_INSTAKILL, NULL, NULL);
+}
+
+static void zNPCSpawnStressKillPercent()
+{
+    if (s_stressKillPct == 0)
+    {
+        return;
+    }
+
+    st_XORDEREDARRAY* list = zNPCMgr_GetNPCList();
+
+    if (list == NULL || list->cnt < 1)
+    {
+        return;
+    }
+
+    U32 hits = 0;
+
+    for (S32 i = list->cnt - 1; i >= 0; i--)
+    {
+        if (xurand() * 100.0f >= (F32)s_stressKillPct)
+        {
+            continue;
+        }
+
+        zNPCSpawnStressHit((zNPCCommon*)list->list[i]);
+        hits++;
+    }
+
+    if (hits > 0)
+    {
+        zNPCSpawnLog("STRESS killpct pct=%u hit=%u alive=%d", s_stressKillPct, hits, list->cnt);
     }
 }
 
@@ -242,7 +315,7 @@ bool zNPCSpawnEnabled()
 {
     zNPCSpawnStressSetup();
 
-    if (s_stressTarget > 0)
+    if (s_stressTarget > 0 || s_stressKillPct > 0)
     {
         return true;
     }
@@ -876,6 +949,8 @@ void zNPCSpawnScenePostReset()
 void zNPCSpawnTick()
 {
     zNPCSpawnStressSetup();
+
+    zNPCSpawnStressKillPercent();
 
     if (s_stressTarget > 0)
     {
