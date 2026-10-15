@@ -749,6 +749,19 @@ if(NOT LIBRW_PLATFORM_LIST)
 endif()
 set(LIBRW_PLATFORM "${LIBRW_PLATFORM_LIST}" CACHE STRING "librw render backends" FORCE)
 
+# Whether this build opens a device that draws. imgui_impl_rw.cpp -- the
+# vendored backend's RenderWare half -- is written against one (RWDEVICE and
+# Im2DVertex only exist per real platform), so a NULL-only build, which opens
+# none, skips imgui and iImgui.cpp entirely rather than compile a backend that
+# cannot exist there. BFBB_HAS_IMGUI reaches the sources too, as a compile
+# definition, so iImgui.h can fold every entry point to a no-op and the call
+# sites need no guard of their own.
+if(LIBRW_PLATFORM_LIST STREQUAL "NULL")
+  set(BFBB_HAS_IMGUI OFF)
+else()
+  set(BFBB_HAS_IMGUI ON)
+endif()
+
 # GL3 only, and it decides the SHAPE of rw::EngineOpenParams -- GLFW's carries a
 # GLFWwindow**, SDL's an SDL_Window** and a fullscreen flag -- so the arm in
 # rw/engine_start.cpp is written against this value and not against GL3 alone.
@@ -866,17 +879,20 @@ set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/librw/skeleton/imgui)
 # the file dies with 'skeleton.h' file not found. skeleton/imgui stays because the
 # port's own code includes "imgui.h" directly from it.
 set(LIBRW_SKELETON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/librw/skeleton)
-add_library(imgui STATIC
-  ${IMGUI_DIR}/imgui.cpp
-  ${IMGUI_DIR}/imgui_draw.cpp
-  ${IMGUI_DIR}/imgui_tables.cpp
-  ${IMGUI_DIR}/imgui_widgets.cpp
-  ${IMGUI_DIR}/imgui_demo.cpp
-  ${IMGUI_DIR}/imgui_impl_rw.cpp
-)
-target_include_directories(imgui PUBLIC ${LIBRW_SKELETON_DIR} ${IMGUI_DIR})
-target_link_libraries(imgui PUBLIC librw)
-target_compile_options(imgui PRIVATE ${BFBB_NO_WARNINGS})
+# Absent with BFBB_HAS_IMGUI=OFF -- see the definition of that flag above.
+if(BFBB_HAS_IMGUI)
+  add_library(imgui STATIC
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_impl_rw.cpp
+  )
+  target_include_directories(imgui PUBLIC ${LIBRW_SKELETON_DIR} ${IMGUI_DIR})
+  target_link_libraries(imgui PUBLIC librw)
+  target_compile_options(imgui PRIVATE ${BFBB_NO_WARNINGS})
+endif()
 
 # --- the platform layer ------------------------------------------------------
 # Only the interfaces that are implemented. The rest of the i* set is listed in
@@ -886,6 +902,14 @@ target_compile_options(imgui PRIVATE ${BFBB_NO_WARNINGS})
 # The menus as code; see src/SB/Core/pc/menu/README.md. A glob, so a package
 # converted by tools/menugen needs no edit here.
 file(GLOB MENU_SOURCES CONFIGURE_DEPENDS ${PC_DIR}/menu/*.cpp)
+# iImgui.cpp is the only translation unit that touches imgui, so a build with
+# BFBB_HAS_IMGUI=OFF simply leaves it (and the imgui target) out; the header it
+# shares with the call sites then declares inline no-ops instead.
+if(BFBB_HAS_IMGUI)
+  set(BFBB_IMGUI_SOURCES ${PC_DIR}/iImgui.cpp)
+else()
+  set(BFBB_IMGUI_SOURCES)
+endif()
 
 add_library(bfbb_platform STATIC
   ${PC_DIR}/iBoot.cpp
@@ -915,7 +939,7 @@ add_library(bfbb_platform STATIC
   ${PC_DIR}/iPadGlyph.cpp
   ${PC_DIR}/iPadStick.cpp
   ${PC_DIR}/iSystem.cpp
-  ${PC_DIR}/iImgui.cpp
+  ${BFBB_IMGUI_SOURCES}
   ${PC_DIR}/iTextPatch.cpp
   ${PC_DIR}/iTour.cpp
   ${PC_DIR}/iScreenBleed.cpp
@@ -1103,7 +1127,12 @@ set_source_files_properties(
   PROPERTIES COMPILE_OPTIONS "${BFBB_EXCEPTIONS}")
 
 target_link_libraries(bfbb_platform PUBLIC bfbb_rw)
-target_link_libraries(bfbb_platform PUBLIC imgui)
+if(BFBB_HAS_IMGUI)
+  target_link_libraries(bfbb_platform PUBLIC imgui)
+  # PUBLIC so bfbb_game and the executable see it too: iImgui.h is included by
+  # zMain, zNPCSpawn, iCamera and iSystem as well as by the platform layer.
+  target_compile_definitions(bfbb_platform PUBLIC BFBB_HAS_IMGUI)
+endif()
 
 # The movie decoder and its audio device. PRIVATE: nothing above bfbb_platform
 # includes an FFmpeg header, and iFMV.cpp is the only caller of either seam.

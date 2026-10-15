@@ -34,8 +34,13 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <ucontext.h>
 #include <dlfcn.h>
+// Only the Linux arm reads a ucontext: macOS's ucontext.h refuses to compile
+// without _XOPEN_SOURCE (its routines are deprecated there), and every
+// ucontext_t use below sits under __linux__ anyway.
+#if defined(__linux__)
+#include <ucontext.h>
+#endif
 
 // The POSIX arm walks the stack through the host seam rather than writing its
 // own. iHostPrintCallers is the same job -- "which code leads here", symbolised
@@ -496,9 +501,10 @@ namespace
         }
         sReporting = 1;
 
+#if defined(__linux__)
         ucontext_t* uc = (ucontext_t*)context;
-#if !defined(__linux__)
-        (void)uc;
+#else
+        (void)context;
 #endif
 
         printf("\nbfbb: CRASH -- %s\n", strsignal(sig));

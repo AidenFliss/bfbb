@@ -2,6 +2,12 @@
 
 #include <time.h>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 // The window for a build that does not draw.
 //
 // This is not a placeholder for a missing implementation -- it is what the
@@ -58,9 +64,30 @@ void iWindowPump()
 
 U64 iWindowGetTicksNS()
 {
+#ifdef _WIN32
+    // QueryPerformanceCounter, not GetTickCount: the same reason POSIX uses
+    // CLOCK_MONOTONIC rather than the wall clock, and the same arithmetic as
+    // iHostWin32.cpp -- split so a long uptime does not overflow the multiply.
+    // Written out here rather than calling iHostMonotonicNs because bfbb_rw
+    // links neither the platform layer nor the C++ standard library (see the
+    // note in rw/camera.cpp); MSVC's CRT also has no clock_gettime, so the
+    // POSIX arm below would not compile for a Windows NULL build at all.
+    static U64 freq = 0;
+    if (freq == 0)
+    {
+        LARGE_INTEGER f;
+        QueryPerformanceFrequency(&f);
+        freq = (U64)f.QuadPart;
+    }
+    LARGE_INTEGER c;
+    QueryPerformanceCounter(&c);
+    U64 ticks = (U64)c.QuadPart;
+    return (ticks / freq) * 1000000000ULL + ((ticks % freq) * 1000000000ULL) / freq;
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (U64)ts.tv_sec * 1000000000ULL + (U64)ts.tv_nsec;
+#endif
 }
 
 void iWindowPerfNotePresent(U64)

@@ -6,6 +6,10 @@
 // header -- same family as iSnapshot.h, and for the same reason: the DOL
 // cannot see it by construction. See iImgui.cpp for the frame contract.
 
+struct xIniFile;
+
+#ifdef BFBB_HAS_IMGUI
+
 void iImguiInit();     // once, after RwEngineStart -- the font atlas needs a device
 void iImguiNewFrame(); // exactly once per frame, before any ImGui:: call
 void iImguiRender();   // exactly once per frame, after the game has drawn
@@ -16,7 +20,7 @@ void iImguiShutdown(); // once, before the engine is closed
 // something does.
 bool iImguiWantCapture();
 
-// Name of the last level warped to via the ImGui Level Warp menu, or NULL if
+// Name of the last level warped to via the ImGui Level Warp menu, or nullptr if
 // none this run. The runtime-asset test (zNPCSpawn) uses it to reset its state
 // when a new level loads. Port-only; same reasoning as the rest of this file.
 const char* iImguiLastWarpName();
@@ -26,10 +30,46 @@ const char* iImguiLastWarpName();
 // does not run on the title screen or during a scene switch.
 bool iImguiInGame();
 
-struct xIniFile;
-
 // Snapshot the boot-time SB.INI key/value pairs so the SB.INI Editor can
 // restore defaults. Called once from zMainReadINI before the file is destroyed.
 void iImguiINICaptureDefaults(xIniFile* ini);
+
+#else
+
+// A build whose only backend is NULL opens no device, so there is no imgui and
+// no iImgui.cpp -- the vendored backend draws through RWDEVICE, which does not
+// exist there (see BFBB_HAS_IMGUI in CMakeLists). Every entry point folds to
+// nothing here so the call sites (iCamera, iSystem, zMain, zNPCSpawn) need no
+// guard of their own. False/nullptr are the safe answers: nothing to capture,
+// nowhere warped to, not in game.
+inline void iImguiInit()
+{
+}
+inline void iImguiNewFrame()
+{
+}
+inline void iImguiRender()
+{
+}
+inline void iImguiShutdown()
+{
+}
+inline bool iImguiWantCapture()
+{
+    return false;
+}
+inline const char* iImguiLastWarpName()
+{
+    return nullptr;
+}
+inline bool iImguiInGame()
+{
+    return false;
+}
+inline void iImguiINICaptureDefaults(xIniFile*)
+{
+}
+
+#endif
 
 #endif
