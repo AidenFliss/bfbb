@@ -1797,7 +1797,7 @@ void xShadowVertical_DrawCache(xShadowCache* cache, F32 shadowFactor, F32 fadeDi
 
 void xShadowManager_Init(S32 numEnts)
 {
-    sMgrList = (xShadowMgr*)xMemAlloc(gActiveHeap, numEnts << 4, 0);
+    sMgrList = (xShadowMgr*)xMemAlloc(gActiveHeap, numEnts * sizeof(xShadowMgr), 0);
     sMgrTotal = numEnts;
     sMgrCount = 0; // Scheduling off
 }

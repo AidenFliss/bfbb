@@ -802,6 +802,16 @@ xAnimState* xAnimTableNewState(xAnimTable* table, const char* name, U32 flags, U
         table->StateList->Next = state;
     }
 
+    U32 namelen = (U32)strlen(name) + 1;
+    char* stored =
+        (char*)(gxAnimUseGrowAlloc ? xMemGrowAllocSize(namelen) : xMemAllocSize(namelen));
+
+    if (stored != NULL)
+    {
+        memcpy(stored, name, namelen);
+        name = stored;
+    }
+
     state->Name = name;
     state->ID = xStrHash(name);
     state->Flags = flags;
