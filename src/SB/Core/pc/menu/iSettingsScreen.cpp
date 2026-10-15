@@ -24,6 +24,7 @@
 
 #include "iAssetOverride.h"
 #include "iBoot.h"
+#include "iCheats.h"
 #include "iConfig.h"
 #include "iPadBind.h"
 #include "iPadHost.h"
@@ -66,9 +67,10 @@ namespace
         TAB_EFFECTS,
         TAB_CONTROLS,
         TAB_GAME,
+        TAB_CHEATS,
         TAB_COUNT
     };
-    const char* const kTabNames[TAB_COUNT] = { "Display", "Effects", "Controls", "Game" };
+    const char* const kTabNames[TAB_COUNT] = { "Display", "Effects", "Controls", "Game", "Cheats" };
 
     struct Setting
     {
@@ -187,6 +189,91 @@ namespace
         iPadGlyphSetEnabled(iHostStrCaseCmp(w, "off") != 0);
     }
 
+    void ApplyAllWarps(const char* w)
+    {
+        iCheatSetAllWarps(On(w));
+    }
+
+    void ApplyBubbleBowl(const char* w)
+    {
+        iCheatSetBubbleBowl(On(w));
+    }
+
+    void ApplyCruiseBubble(const char* w)
+    {
+        iCheatSetCruiseBubble(On(w));
+    }
+
+    void ApplyShinies(const char* w)
+    {
+        iCheatSetUnlimitedShinies(On(w));
+    }
+
+    void ApplySpatulas(const char* w)
+    {
+        iCheatSetUnlimitedSpatulas(On(w));
+    }
+
+    void ApplyHealth(const char* w)
+    {
+        iCheatSetUnlimitedHealth(On(w));
+    }
+
+    void ApplyExpert(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_EXPERT, On(w));
+    }
+
+    void ApplyShrapbob(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_SHRAPBOB, On(w));
+    }
+
+    void ApplyNoPants(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_NO_PANTS, On(w));
+    }
+
+    void ApplyCruiseControl(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_CRUISE_CONTROL, On(w));
+    }
+
+    void ApplyBigPlank(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_BIG_PLANK, On(w));
+    }
+
+    void ApplySmallVillagers(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_SMALL_VILLAGERS, On(w));
+    }
+
+    void ApplySmallCostars(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_SMALL_COSTARS, On(w));
+    }
+
+    void ApplyMedics(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_MEDICS, On(w));
+    }
+
+    void ApplyDogTricks(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_DOG_TRICKS, On(w));
+    }
+
+    void ApplyRichVillagers(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_RICH_VILLAGERS, On(w));
+    }
+
+    void ApplyPanhandle(const char* w)
+    {
+        iCheatSetGameFlag(ICHEAT_PANHANDLE, On(w));
+    }
+
     const Setting kSettings[] = {
         { TAB_DISPLAY, "Window", "video.mode", "borderless|windowed|fullscreen",
           "Borderless|Windowed|Fullscreen", NOW,
@@ -235,6 +322,41 @@ namespace
           ApplyCameraSpeed, false },
         { TAB_GAME, "Intro movies", "game.intro_movies", "on|off", "On|Off", RESTART,
           "Logos shown at startup.", NULL, false },
+
+        { TAB_CHEATS, "Hard mode", "cheats.expert_mode", "on|off", "On|Off", NOW,
+          "Faster, quicker-firing robots.", ApplyExpert, false },
+        { TAB_CHEATS, "Panhandle", "cheats.panhandle", "on|off", "On|Off", NOW,
+          "Villagers beg shinies while you are rich.", ApplyPanhandle, false },
+        { TAB_CHEATS, "Rich villagers", "cheats.rich_villagers", "on|off", "On|Off", NOW,
+          "Villagers drop shinies when hit.", ApplyRichVillagers, false },
+        { TAB_CHEATS, "Medics", "cheats.medics", "on|off", "On|Off", NOW,
+          "Villagers heal you when you stand near them.", ApplyMedics, false },
+        { TAB_CHEATS, "Dog tricks", "cheats.dog_tricks", "on|off", "On|Off", NOW,
+          "Villagers cheer and drop shinies at tricks.", ApplyDogTricks, false },
+        { TAB_CHEATS, "Small villagers", "cheats.small_villagers", "on|off", "On|Off", NOW,
+          "Shrink the fish villagers.", ApplySmallVillagers, false },
+        { TAB_CHEATS, "Small cast", "cheats.small_costars", "on|off", "On|Off", NOW,
+          "Shrink Squidward, Patrick and the others.", ApplySmallCostars, false },
+        { TAB_CHEATS, "Big Plankton", "cheats.big_plank", "on|off", "On|Off", NOW,
+          "Make Plankton 2.5 times bigger.", ApplyBigPlank, false },
+        { TAB_CHEATS, "ShrapBob", "cheats.shrapbob", "on|off", "On|Off", NOW,
+          "SpongeBob bursts into pieces when he dies.", ApplyShrapbob, false },
+        { TAB_CHEATS, "No pants", "cheats.no_pants", "on|off", "On|Off", NOW,
+          "SpongeBob without his pants.", ApplyNoPants, false },
+        { TAB_CHEATS, "Cruise control", "cheats.cruise_control", "on|off", "On|Off", NOW,
+          "A faster Cruise Bubble with a bigger blast.", ApplyCruiseControl, false },
+        { TAB_CHEATS, "Bubble Bowl", "cheats.bubble_bowl", "on|off", "On|Off", NOW,
+          "Give SpongeBob the Bubble Bowl.", ApplyBubbleBowl, false },
+        { TAB_CHEATS, "Cruise Bubble", "cheats.cruise_bubble", "on|off", "On|Off", NOW,
+          "Give SpongeBob the Cruise Bubble.", ApplyCruiseBubble, false },
+        { TAB_CHEATS, "All warps", "cheats.all_warps", "on|off", "On|Off", NOW,
+          "The pause menu's taxi warps to any spatula.", ApplyAllWarps, false },
+        { TAB_CHEATS, "Unlimited shinies", "cheats.unlimited_shinies", "on|off", "On|Off", NOW,
+          "Shinies stay at the maximum.", ApplyShinies, false },
+        { TAB_CHEATS, "Unlimited spatulas", "cheats.unlimited_spatulas", "on|off", "On|Off", NOW,
+          "Golden spatulas stay at the maximum.", ApplySpatulas, false },
+        { TAB_CHEATS, "Invincible", "cheats.unlimited_health", "on|off", "On|Off", NOW,
+          "No damage from hits. Goo and falls still kill.", ApplyHealth, false },
     };
     const S32 kCount = (S32)(sizeof(kSettings) / sizeof(kSettings[0]));
 

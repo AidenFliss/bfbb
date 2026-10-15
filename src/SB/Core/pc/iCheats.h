@@ -47,6 +47,8 @@ S32 iCheatIsNoclip();
 // several land in one frame; an out-of-range mode is ignored.
 void iCheatRequestGameMode(S32 mode);
 
+void iCheatRequestCruiseBoost();
+
 // Blocks touch-collection only: CheckPickupAgainstPlayer returns early, so
 // scripts and deferred bungee collects still run. Off by default.
 void iCheatSetPickupCollectDisabled(S32 on);

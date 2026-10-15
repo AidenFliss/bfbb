@@ -2,6 +2,7 @@
 
 #include "iCheats.h"
 
+#include "xPad.h"
 #include "zEntPlayer.h"
 #include "zGameExtras.h"
 #include "zGlobals.h"
@@ -26,6 +27,7 @@ namespace
     S32 sGameModeRequest = -1;
     S32 sPickupCollectDisabled = FALSE;
     S32 sGameFlags = 0;
+    S32 sCruiseBoostQueued = FALSE;
 }
 
 void iCheatSetGameFlag(iCheatGameFlag flag, S32 on)
@@ -103,6 +105,11 @@ void iCheatRequestGameMode(S32 mode)
     }
 }
 
+void iCheatRequestCruiseBoost()
+{
+    sCruiseBoostQueued = TRUE;
+}
+
 void iCheatSetPickupCollectDisabled(S32 on)
 {
     sPickupCollectDisabled = on;
@@ -115,6 +122,14 @@ S32 iCheatIsPickupCollectDisabled()
 
 void iCheatsUpdate()
 {
+    if (sCruiseBoostQueued)
+    {
+        if (globals.pad0 != NULL)
+        {
+            globals.pad0->pressed |= XPAD_MOVE(XPAD_BUTTON_O) | XPAD_BUTTON_L1;
+        }
+        sCruiseBoostQueued = FALSE;
+    }
     if (sAllWarps)
     {
         globals.player.g.CheatAlwaysPortal = TRUE;
@@ -169,8 +184,16 @@ void iCheatsUpdate()
         zGameModeSwitch((eGameMode)sGameModeRequest);
         sGameModeRequest = -1;
     }
-    if (sGameFlags != 0)
     {
-        GEC_CheatFlagAdd(sGameFlags);
+        const S32 mask = ICHEAT_EXPERT | ICHEAT_BIG_PLANK | ICHEAT_MEDICS | ICHEAT_SMALL_VILLAGERS |
+                         ICHEAT_SMALL_COSTARS | ICHEAT_RICH_VILLAGERS | ICHEAT_PANHANDLE |
+                         ICHEAT_DOG_TRICKS | ICHEAT_SHRAPBOB | ICHEAT_NO_PANTS |
+                         ICHEAT_CRUISE_CONTROL;
+        const S32 cur = zGameExtras_CheatFlags();
+        const S32 diff = cur ^ ((cur & ~mask) | sGameFlags);
+        if (diff != 0)
+        {
+            GEC_CheatFlagToggle(diff);
+        }
     }
 }
