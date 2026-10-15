@@ -4531,7 +4531,8 @@ void zNPCTubelet::ParseLinks()
 
             xBase* mychild = zSceneFindObject(lnk->dstAssetID);
 
-            if (mychild->baseType == eBaseTypeNPC || mychild->baseType == eBaseTypeGroup)
+            if (mychild != NULL &&
+                (mychild->baseType == eBaseTypeNPC || mychild->baseType == eBaseTypeGroup))
             {
                 ParseChild(mychild);
             }
@@ -6255,6 +6256,12 @@ S32 NPCArena::Cycle(zNPCCommon* npc, S32 peek)
     {
         nav_arena = nav;
         SyncHomeFromNav();
+    }
+
+    if (nav_arena == NULL && npc != NULL)
+    {
+        xVec3Copy(&pos_arena, xEntGetPos(npc));
+        rad_arena = 10.0f;
     }
 
     if (peek && !IsReady())

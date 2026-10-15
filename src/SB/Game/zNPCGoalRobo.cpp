@@ -6609,10 +6609,10 @@ S32 zNPCGoalBashed::Enter(F32 dt, void* updCtxt)
     F32 rand;
     zNPCRobot* npc = (zNPCRobot*)(psyche->clt_owner);
     npc->VelStop();
-    static F32 grav = globals.player.g.Gravity;
-    static F32 tym_bashrise = globals.player.g.BBashTime - globals.player.g.BBashCVTime;
-    static F32 player_bash_fromgrav = grav * 0.5f * tym_bashrise;
-    static F32 player_bash_speed =
+    F32 grav = globals.player.g.Gravity;
+    F32 tym_bashrise = globals.player.g.BBashTime - globals.player.g.BBashCVTime;
+    F32 player_bash_fromgrav = grav * 0.5f * tym_bashrise;
+    F32 player_bash_speed =
         (globals.player.g.BBashHeight + player_bash_fromgrav) / globals.player.g.BBashTime;
     npc->frame->vel.y = 10.0f;
     npc->frame->vel.x =
